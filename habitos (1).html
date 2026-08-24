@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hábitos">
+<meta name="theme-color" content="#14161c">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>Núcleo de Hábitos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14161c; --surface:#1b1e27; --surface-2:#242833; --border:#333846;
+    --text:#EDEAE3; --text-dim:#9299AC; --text-faint:#5b6072;
+    --accent:#E8A33D; --good:#7FA65C; --warn:#C9A876; --bad:#3a3f4d;
+    --radius:18px; --radius-sm:10px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100dvh;padding-bottom:100px;}
+  ::selection{background:rgba(232,163,61,.35);}
+
+  header{padding:26px 16px 16px;max-width:640px;margin:0 auto;border-bottom:1px solid var(--border);}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px;}
+  h1{font-family:'Fraunces',serif;font-weight:500;font-size:28px;margin:0 0 14px;letter-spacing:-.01em;}
+
+  .stat-row{display:flex;gap:10px;}
+  .stat-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
+  .stat-num{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;}
+  .stat-label{font-size:10.5px;color:var(--text-dim);margin-top:2px;line-height:1.3;}
+  .stat-box.won{border-color:rgba(127,166,92,.5);}
+  .stat-box.won .stat-num{color:var(--good);}
+
+  .sub-actions{display:flex;justify-content:space-between;align-items:center;margin-top:12px;}
+  .sub-actions .count{font-size:11.5px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;}
+  .sub-actions button{background:none;border:none;color:var(--text-faint);font-size:11.5px;text-decoration:underline;cursor:pointer;}
+
+  #habit-list{max-width:640px;margin:0 auto;padding:16px 16px 0;}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--text-dim);}
+  .empty-state .glyph{font-size:38px;display:block;margin-bottom:14px;}
+  .empty-state p{font-size:14px;line-height:1.6;max-width:280px;margin:6px auto;}
+
+  .habit-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 14px 12px;margin-bottom:12px;animation:rise .3s ease both;}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+  .card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+  .card-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .cat-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .card-title .name{font-family:'Fraunces',serif;font-size:17.5px;font-weight:500;}
+  .card-meta{display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap;}
+  .cat-label{font-size:11px;color:var(--text-dim);}
+  .priority-dots{display:flex;gap:2px;}
+  .priority-dots span{width:5px;height:5px;border-radius:50%;background:var(--border);}
+  .priority-dots span.on{background:var(--accent);}
+  .freq-label{font-size:11px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;}
+
+  .edit-btn{background:none;border:none;color:var(--text-faint);font-size:15px;cursor:pointer;padding:4px 6px;line-height:1;flex-shrink:0;}
+
+  .mode-hints{font-size:11.5px;color:var(--text-dim);margin-top:8px;line-height:1.5;}
+  .mode-hints b{color:var(--text);font-weight:600;}
+
+  .log-buttons{display:flex;gap:6px;margin-top:12px;}
+  .log-buttons button{
+    flex:1;padding:10px 4px;border-radius:var(--radius-sm);border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text-dim);font-size:12px;font-family:'Inter',sans-serif;
+    cursor:pointer;font-weight:600;
+  }
+  .log-buttons button.active-no{background:rgba(217,112,95,.14);border-color:#d9705f;color:#e08a7c;}
+  .log-buttons button.active-superv{background:rgba(201,168,118,.16);border-color:var(--warn);color:var(--warn);}
+  .log-buttons button.active-normal{background:rgba(127,166,92,.16);border-color:var(--good);color:var(--good);}
+
+  .week-strip{display:flex;gap:4px;margin-top:12px;}
+  .week-strip .d{
+    flex:1;height:20px;border-radius:5px;background:var(--surface-2);border:1px solid var(--border);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-faint);
+  }
+  .week-strip .d.today{box-shadow:0 0 0 1.5px var(--text);}
+
+  .expand-btn{background:none;border:none;color:var(--text-faint);font-size:11px;margin-top:10px;cursor:pointer;text-decoration:underline;padding:0;font-family:'Inter',sans-serif;}
+  .year-wrap{display:none;margin-top:10px;}
+  .year-wrap.open{display:block;}
+  .heatmap-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .heatmap-scroll::-webkit-scrollbar{display:none;}
+  .heatmap-inner{display:inline-flex;flex-direction:column;gap:3px;}
+  .month-row{display:grid;grid-auto-flow:column;grid-auto-columns:12px;gap:3px;height:11px;margin-bottom:2px;}
+  .month-label{font-family:'JetBrains Mono',monospace;font-size:8.5px;color:var(--text-faint);white-space:nowrap;}
+  .weeks-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,9px);grid-auto-columns:12px;gap:3px;}
+  .cell{width:9px;height:9px;border-radius:2.5px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;}
+  .cell.future{opacity:.2;pointer-events:none;border:none;background:transparent;}
+  .cell.today{box-shadow:0 0 0 1.5px var(--text);}
+
+  .fab{position:fixed;right:20px;bottom:28px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#20140a;border:none;font-size:26px;font-weight:600;box-shadow:0 6px 20px rgba(232,163,61,.35);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:50;}
+  .fab:active{transform:scale(.94);}
+
+  .sheet-backdrop{position:fixed;inset:0;background:rgba(10,11,14,.6);backdrop-filter:blur(2px);display:none;align-items:flex-end;justify-content:center;z-index:100;}
+  .sheet-backdrop.open{display:flex;}
+  .sheet{background:var(--surface);border:1px solid var(--border);border-bottom:none;border-radius:22px 22px 0 0;width:100%;max-width:640px;padding:10px 20px calc(24px + env(safe-area-inset-bottom));max-height:88dvh;overflow-y:auto;animation:slideup .25s ease both;}
+  @keyframes slideup{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:4px;margin:6px auto 16px;}
+  .sheet h2{font-family:'Fraunces',serif;font-weight:500;font-size:22px;margin:0 0 18px;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace;letter-spacing:.03em;}
+  .field input[type=text], .field textarea, .field select{
+    width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    font-family:'Inter',sans-serif;font-size:15.5px;padding:10px 12px;border-radius:var(--radius-sm);
+  }
+  .field textarea{resize:vertical;min-height:44px;}
+
+  .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;}
+  .cat-pick{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 4px;text-align:center;cursor:pointer;}
+  .cat-pick .em{font-size:17px;display:block;}
+  .cat-pick .nm{font-size:9px;color:var(--text-dim);margin-top:3px;display:block;line-height:1.2;}
+  .cat-pick.active{border-color:var(--text);background:var(--surface);}
+
+  .pri-row{display:flex;gap:8px;margin-top:8px;}
+  .pri-row button{flex:1;padding:9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);font-family:'JetBrains Mono',monospace;cursor:pointer;}
+  .pri-row button.active{background:rgba(232,163,61,.14);border-color:var(--accent);color:var(--text);}
+
+  .freq-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+  .freq-row button{flex:1;min-width:38px;padding:8px 4px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);font-size:12px;font-family:'JetBrains Mono',monospace;cursor:pointer;}
+  .freq-row button.active{background:rgba(232,163,61,.14);border-color:var(--accent);color:var(--text);}
+
+  .type-row{display:flex;gap:8px;margin-top:8px;}
+  .type-row button{flex:1;padding:9px 4px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);font-size:12.5px;cursor:pointer;}
+  .type-row button.active{background:rgba(232,163,61,.14);border-color:var(--accent);color:var(--text);}
+
+  .sheet-actions{display:flex;gap:10px;margin-top:22px;}
+  .btn{flex:1;padding:13px;border-radius:var(--radius-sm);border:none;font-family:'Inter',sans-serif;font-size:14.5px;font-weight:600;cursor:pointer;}
+  .btn-primary{background:var(--accent);color:#20140a;}
+  .btn-ghost{background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border);}
+  .btn-danger{background:transparent;color:#d9705f;border:1px solid rgba(217,112,95,.35);}
+  .btn:active{transform:scale(.98);}
+
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:200;max-width:85%;text-align:center;}
+  .toast.show{opacity:1;}
+  .loading{padding:60px 20px;text-align:center;color:var(--text-faint);font-family:'JetBrains Mono',monospace;font-size:12px;}
+
+  .log-date{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);margin-bottom:2px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow" id="eyebrow-today">cargando…</div>
+  <h1>Núcleo de Hábitos</h1>
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="stat-num" id="stat-consistency">–</div>
+      <div class="stat-label">consistencia<br>7 días</div>
+    </div>
+    <div class="stat-box" id="stat-won-box">
+      <div class="stat-num" id="stat-won">–</div>
+      <div class="stat-label" id="stat-won-label">día de hoy</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="stat-active">–</div>
+      <div class="stat-label">hábitos<br>activos</div>
+    </div>
+  </div>
+  <div class="sub-actions">
+    <span class="count" id="max-warning"></span>
+    <button id="reset-btn">reiniciar datos</button>
+  </div>
+</header>
+
+<div id="habit-list"><div class="loading">cargando…</div></div>
+
+<button class="fab" id="add-fab">+</button>
+
+<!-- Sheet: crear/editar hábito -->
+<div class="sheet-backdrop" id="habit-backdrop">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="habit-sheet-title">Nuevo hábito</h2>
+
+    <div class="field">
+      <label>Nombre</label>
+      <input type="text" id="f-name" placeholder="Bloque de estudio profundo">
+    </div>
+
+    <div class="field">
+      <label>Categoría</label>
+      <div class="cat-grid" id="cat-grid"></div>
+    </div>
+
+    <div class="field">
+      <label>Prioridad (peso en la puntuación)</label>
+      <div class="pri-row" id="pri-row">
+        <button data-p="1">1</button><button data-p="2">2</button><button data-p="3">3</button><button data-p="4">4</button><button data-p="5">5</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Frecuencia objetivo (días por semana)</label>
+      <div class="freq-row" id="freq-row"></div>
+    </div>
+
+    <div class="field">
+      <label>Tipo</label>
+      <div class="type-row" id="type-row">
+        <button data-t="resultado">Resultado</button>
+        <button data-t="inicio">Inicio</button>
+        <button data-t="aprendizaje">Aprendizaje</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Modo normal</label>
+      <textarea id="f-normal" placeholder="60-90 minutos"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Modo supervivencia (mínimo viable)</label>
+      <textarea id="f-superv" placeholder="10-25 minutos"></textarea>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="habit-cancel">Cancelar</button>
+      <button class="btn btn-danger" id="habit-delete" style="display:none;">Eliminar</button>
+      <button class="btn btn-primary" id="habit-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sheet: registrar un día específico -->
+<div class="sheet-backdrop" id="log-backdrop">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="log-date" id="log-date-label">23 ago 2026</div>
+    <h2 id="log-habit-name">Bloque de estudio</h2>
+    <div class="log-buttons" style="margin-top:2px;">
+      <button type="button" id="log-no">No cumplido</button>
+      <button type="button" id="log-superv">Supervivencia</button>
+      <button type="button" id="log-normal">Normal</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="log-cancel">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  const CATEGORIES = {
+    sueno:        {name:"Sueño",                emoji:"😴", color:"#5B9BD9"},
+    estudio:      {name:"Estudio",               emoji:"📚", color:"#E8A33D"},
+    clinica:      {name:"Clínica",                emoji:"🩺", color:"#D96C93"},
+    fisico:       {name:"Físico",                 emoji:"🏃", color:"#4FBDB0"},
+    nutricion:    {name:"Nutrición",              emoji:"🥗", color:"#7FA65C"},
+    organizacion: {name:"Organización",           emoji:"🗂️", color:"#9B8CD9"},
+    tecnologia:   {name:"Tecnología y atención",  emoji:"📵", color:"#C9A876"},
+    vida:         {name:"Vida personal",          emoji:"❤️", color:"#E8735A"},
+  };
+  const SALUD_CATS = ["sueno","fisico","nutricion"];
+  const ESTUDIO_CATS = ["estudio","clinica"];
+  const ORG_CATS = ["organizacion"];
+  const MAX_ACTIVE = 10;
+
+  const STORAGE_KEY = "nucleo-habitos-data";
+  const MONTHS_ES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const DIAS_ES = ["L","M","X","J","V","S","D"];
+
+  const today = new Date();
+  const todayStr = fmt(today);
+  const YEAR = today.getFullYear();
+  const yearStart = new Date(YEAR,0,1);
+  const yearEnd = new Date(YEAR,11,31);
+
+  let state = { habits: [], logs: {} }; // logs[dateStr][habitId] = 'no'|'superv'|'normal'
+  let editingHabitId = null;
+  let currentLogCtx = null;
+  let f_categoria = "sueno";
+  let f_prioridad = 3;
+  let f_frecuencia = 5;
+  let f_tipo = "resultado";
+
+  function fmt(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+  function hexToRgb(hex){ const v=hex.replace("#",""); return [parseInt(v.slice(0,2),16),parseInt(v.slice(2,4),16),parseInt(v.slice(4,6),16)]; }
+  function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2200); }
+  function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+
+  async function loadData(){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, false);
+      state = (res && res.value) ? JSON.parse(res.value) : { habits: [], logs: {} };
+    }catch(e){ state = { habits: [], logs: {} }; }
+    render();
+  }
+  async function persist(){
+    try{
+      const r = await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+      if(!r) toast("No se pudo guardar");
+    }catch(e){ console.error(e); toast("Error al guardar. Intenta de nuevo."); }
+  }
+
+  function logStatus(habitId, dateStr){
+    const day = state.logs[dateStr];
+    return day && day[habitId] ? day[habitId] : "no";
+  }
+  function puntuacionObtenida(habit, dateStr){
+    const st = logStatus(habit.id, dateStr);
+    return (st === "normal" || st === "superv") ? habit.prioridad : 0;
+  }
+  function habitActiveOn(habit, dateStr){
+    return habit.activo && habit.createdAt.slice(0,10) <= dateStr;
+  }
+
+  function consistencyIndex(){
+    let earned=0, possible=0;
+    for(let i=6;i>=0;i--){
+      const d = fmt(addDays(today,-i));
+      state.habits.forEach(h=>{
+        if(habitActiveOn(h,d)){ possible += h.prioridad; earned += puntuacionObtenida(h,d); }
+      });
+    }
+    if(possible===0) return null;
+    return Math.round((earned/possible)*100);
+  }
+
+  function diaGanado(dateStr){
+    const cumplidoEnCat = (cats)=> state.habits.some(h => cats.includes(h.categoria) && habitActiveOn(h,dateStr) && logStatus(h.id,dateStr)!=="no");
+    return cumplidoEnCat(SALUD_CATS) && cumplidoEnCat(ESTUDIO_CATS) && cumplidoEnCat(ORG_CATS);
+  }
+
+  function renderStats(){
+    const ci = consistencyIndex();
+    document.getElementById("stat-consistency").textContent = ci===null ? "–" : ci+"%";
+    const ganado = diaGanado(todayStr);
+    const wonBox = document.getElementById("stat-won-box");
+    document.getElementById("stat-won").textContent = ganado ? "✓" : "–";
+    document.getElementById("stat-won-label").textContent = ganado ? "día ganado" : "día de hoy";
+    wonBox.classList.toggle("won", ganado);
+    const activeCount = state.habits.filter(h=>h.activo).length;
+    document.getElementById("stat-active").textContent = activeCount+"/"+MAX_ACTIVE;
+    document.getElementById("max-warning").textContent = activeCount>MAX_ACTIVE ? "⚠ pasaste el máximo recomendado de "+MAX_ACTIVE : "";
+
+    const opts = {weekday:"long", day:"numeric", month:"long"};
+    document.getElementById("eyebrow-today").textContent = today.toLocaleDateString("es-MX",opts);
+  }
+
+  function buildWeekStrip(habit){
+    const strip = document.createElement("div");
+    strip.className = "week-strip";
+    for(let i=6;i>=0;i--){
+      const d = addDays(today,-i);
+      const dstr = fmt(d);
+      const cell = document.createElement("div");
+      cell.className = "d" + (dstr===todayStr ? " today":"");
+      const st = habitActiveOn(habit,dstr) ? logStatus(habit.id,dstr) : null;
+      if(st==="normal"){ const [r,g,b]=hexToRgb(habit.color); cell.style.background=`rgba(${r},${g},${b},1)`; cell.style.borderColor="transparent"; }
+      else if(st==="superv"){ const [r,g,b]=hexToRgb(habit.color); cell.style.background=`rgba(${r},${g},${b},0.45)`; cell.style.borderColor="transparent"; }
+      cell.textContent = DIAS_ES[(d.getDay()+6)%7];
+      cell.style.color = st ? "rgba(0,0,0,.45)" : "";
+      cell.addEventListener("click", ()=> openLogSheet(habit.id, dstr));
+      strip.appendChild(cell);
+    }
+    return strip;
+  }
+
+  function buildYearHeatmap(habit){
+    const startOffset = (yearStart.getDay()+6)%7;
+    const totalDays = Math.round((yearEnd - yearStart)/86400000)+1;
+    const totalCols = Math.ceil((totalDays+startOffset)/7);
+    const monthRow = document.createElement("div"); monthRow.className="month-row";
+    const grid = document.createElement("div"); grid.className="weeks-grid";
+    let lastMonthLabeled=-1;
+    for(let col=0; col<totalCols; col++){
+      let monthLabelHere="";
+      for(let row=0; row<7; row++){
+        const dayIndex = col*7+row-startOffset;
+        const cellDiv = document.createElement("div");
+        if(dayIndex<0 || dayIndex>=totalDays){ cellDiv.className="cell future"; }
+        else{
+          const d = new Date(YEAR,0,1+dayIndex);
+          const dstr = fmt(d);
+          const isFuture = dstr>todayStr;
+          cellDiv.className = "cell"+(isFuture?" future":"")+(dstr===todayStr?" today":"");
+          if(!isFuture){
+            const st = habitActiveOn(habit,dstr) ? logStatus(habit.id,dstr) : null;
+            if(st==="normal"){ const [r,g,b]=hexToRgb(habit.color); cellDiv.style.background=`rgba(${r},${g},${b},1)`; }
+            else if(st==="superv"){ const [r,g,b]=hexToRgb(habit.color); cellDiv.style.background=`rgba(${r},${g},${b},0.45)`; }
+            cellDiv.title=dstr;
+            cellDiv.addEventListener("click", ()=>openLogSheet(habit.id,dstr));
+          }
+          if(row===0 && d.getDate()<=7 && d.getMonth()!==lastMonthLabeled){ monthLabelHere=MONTHS_ES[d.getMonth()]; lastMonthLabeled=d.getMonth(); }
+        }
+        grid.appendChild(cellDiv);
+      }
+      const mCell=document.createElement("div"); mCell.className="month-label"; mCell.textContent=monthLabelHere;
+      monthRow.appendChild(mCell);
+    }
+    const wrap=document.createElement("div"); wrap.className="heatmap-inner"; wrap.appendChild(monthRow); wrap.appendChild(grid);
+    const scroller=document.createElement("div"); scroller.className="heatmap-scroll"; scroller.appendChild(wrap);
+    return scroller;
+  }
+
+  function render(){
+    renderStats();
+    const list = document.getElementById("habit-list");
+    list.innerHTML = "";
+
+    if(state.habits.length===0){
+      list.innerHTML = `<div class="empty-state"><span class="glyph">🌱</span>
+        <p>Aún no hay hábitos. Toca + para agregar el primero — piensa en modo normal y en el mínimo viable de supervivencia.</p></div>`;
+      return;
+    }
+
+    const sorted = [...state.habits].sort((a,b)=> (b.activo-a.activo) || (b.prioridad-a.prioridad));
+    sorted.forEach(habit=>{
+      const cat = CATEGORIES[habit.categoria];
+      const card = document.createElement("div");
+      card.className = "habit-card";
+      if(!habit.activo) card.style.opacity = "0.5";
+      const st = logStatus(habit.id, todayStr);
+      card.innerHTML = `
+        <div class="card-top">
+          <div>
+            <div class="card-title">
+              <span class="cat-dot" style="background:${cat.color}"></span>
+              <span class="name">${escapeHtml(habit.nombre)}</span>
+            </div>
+            <div class="card-meta">
+              <span class="cat-label">${cat.emoji} ${cat.name}</span>
+              <span class="priority-dots">${[1,2,3,4,5].map(n=>`<span class="${n<=habit.prioridad?'on':''}"></span>`).join("")}</span>
+              <span class="freq-label">${habit.frecuencia}/7 días</span>
+            </div>
+          </div>
+          <button class="edit-btn" data-edit="${habit.id}">✎</button>
+        </div>
+        <div class="mode-hints">
+          <div><b>Normal:</b> ${escapeHtml(habit.modoNormal||"—")}</div>
+          <div><b>Supervivencia:</b> ${escapeHtml(habit.modoSuperv||"—")}</div>
+        </div>
+        <div class="log-buttons">
+          <button data-log="no" class="${st==='no'?'active-no':''}">No cumplido</button>
+          <button data-log="superv" class="${st==='superv'?'active-superv':''}">Supervivencia</button>
+          <button data-log="normal" class="${st==='normal'?'active-normal':''}">Normal</button>
+        </div>
+      `;
+      const strip = buildWeekStrip(habit);
+      card.appendChild(strip);
+
+      const expandBtn = document.createElement("button");
+      expandBtn.className = "expand-btn";
+      expandBtn.textContent = "Ver año completo ▾";
+      const yearWrap = document.createElement("div");
+      yearWrap.className = "year-wrap";
+      let built = false;
+      expandBtn.addEventListener("click", ()=>{
+        yearWrap.classList.toggle("open");
+        const open = yearWrap.classList.contains("open");
+        expandBtn.textContent = open ? "Ocultar año ▴" : "Ver año completo ▾";
+        if(open && !built){ yearWrap.appendChild(buildYearHeatmap(habit)); built = true; }
+        if(open){ requestAnimationFrame(()=>{ const sc=yearWrap.querySelector(".heatmap-scroll"); if(sc) sc.scrollLeft = sc.scrollWidth; }); }
+      });
+      card.appendChild(expandBtn);
+      card.appendChild(yearWrap);
+
+      list.appendChild(card);
+    });
+
+    const cards = list.querySelectorAll(".habit-card");
+    cards.forEach((card, idx)=>{
+      const habit = sorted[idx];
+      card.querySelector("[data-edit]").addEventListener("click", ()=> openHabitSheet(habit.id));
+      card.querySelectorAll("[data-log]").forEach(btn=>{
+        btn.addEventListener("click", async ()=>{
+          const status = btn.getAttribute("data-log");
+          if(!state.logs[todayStr]) state.logs[todayStr] = {};
+          state.logs[todayStr][habit.id] = status;
+          await persist();
+          render();
+        });
+      });
+    });
+  }
+
+  async function resetData(){
+    if(!confirm("Esto borrará todos tus hábitos y registros. ¿Continuar?")) return;
+    state = { habits: [], logs: {} };
+    await persist();
+    render();
+    toast("Datos reiniciados");
+  }
+  document.getElementById("reset-btn").addEventListener("click", resetData);
+
+  // ---------- Habit sheet ----------
+  function buildCatGrid(){
+    const wrap = document.getElementById("cat-grid");
+    wrap.innerHTML = "";
+    Object.keys(CATEGORIES).forEach(key=>{
+      const cat = CATEGORIES[key];
+      const el = document.createElement("div");
+      el.className = "cat-pick" + (key===f_categoria?" active":"");
+      el.innerHTML = `<span class="em">${cat.emoji}</span><span class="nm">${cat.name}</span>`;
+      el.addEventListener("click", ()=>{ f_categoria = key; buildCatGrid(); });
+      wrap.appendChild(el);
+    });
+  }
+  function buildFreqRow(){
+    const wrap = document.getElementById("freq-row");
+    wrap.innerHTML = "";
+    for(let i=0;i<=7;i++){
+      const b = document.createElement("button");
+      b.type="button"; b.textContent=i+"/7"; b.className = i===f_frecuencia?"active":"";
+      b.addEventListener("click", ()=>{ f_frecuencia=i; buildFreqRow(); });
+      wrap.appendChild(b);
+    }
+  }
+  document.querySelectorAll("#pri-row button").forEach(b=>{
+    b.addEventListener("click", ()=>{ f_prioridad = parseInt(b.dataset.p); document.querySelectorAll("#pri-row button").forEach(x=>x.classList.toggle("active", x===b)); });
+  });
+  document.querySelectorAll("#type-row button").forEach(b=>{
+    b.addEventListener("click", ()=>{ f_tipo = b.dataset.t; document.querySelectorAll("#type-row button").forEach(x=>x.classList.toggle("active", x===b)); });
+  });
+
+  function openHabitSheet(habitId){
+    editingHabitId = habitId || null;
+    const habit = habitId ? state.habits.find(h=>h.id===habitId) : null;
+    document.getElementById("habit-sheet-title").textContent = habit ? "Editar hábito" : "Nuevo hábito";
+    document.getElementById("f-name").value = habit ? habit.nombre : "";
+    document.getElementById("f-normal").value = habit ? habit.modoNormal : "";
+    document.getElementById("f-superv").value = habit ? habit.modoSuperv : "";
+    document.getElementById("habit-delete").style.display = habit ? "block" : "none";
+
+    f_categoria = habit ? habit.categoria : "sueno";
+    f_prioridad = habit ? habit.prioridad : 3;
+    f_frecuencia = habit ? habit.frecuencia : 5;
+    f_tipo = habit ? habit.tipo : "resultado";
+
+    buildCatGrid(); buildFreqRow();
+    document.querySelectorAll("#pri-row button").forEach(x=> x.classList.toggle("active", parseInt(x.dataset.p)===f_prioridad));
+    document.querySelectorAll("#type-row button").forEach(x=> x.classList.toggle("active", x.dataset.t===f_tipo));
+
+    document.getElementById("habit-backdrop").classList.add("open");
+  }
+  function closeHabitSheet(){ document.getElementById("habit-backdrop").classList.remove("open"); editingHabitId=null; }
+
+  document.getElementById("add-fab").addEventListener("click", ()=>openHabitSheet(null));
+  document.getElementById("habit-cancel").addEventListener("click", closeHabitSheet);
+  document.getElementById("habit-backdrop").addEventListener("click",(e)=>{ if(e.target.id==="habit-backdrop") closeHabitSheet(); });
+
+  document.getElementById("habit-save").addEventListener("click", async ()=>{
+    const nombre = document.getElementById("f-name").value.trim();
+    if(!nombre){ toast("Ponle un nombre a tu hábito"); return; }
+    const modoNormal = document.getElementById("f-normal").value.trim();
+    const modoSuperv = document.getElementById("f-superv").value.trim();
+    const cat = CATEGORIES[f_categoria];
+
+    if(editingHabitId){
+      const h = state.habits.find(x=>x.id===editingHabitId);
+      Object.assign(h, {nombre, categoria:f_categoria, color:cat.color, prioridad:f_prioridad, frecuencia:f_frecuencia, tipo:f_tipo, modoNormal, modoSuperv});
+    } else {
+      const activeCount = state.habits.filter(h=>h.activo).length;
+      if(activeCount>=MAX_ACTIVE){ toast("Ya tienes "+MAX_ACTIVE+" hábitos activos — tu propio límite recomendado. Se agregó de todas formas."); }
+      state.habits.push({id:uid(), nombre, categoria:f_categoria, color:cat.color, prioridad:f_prioridad, frecuencia:f_frecuencia, tipo:f_tipo, modoNormal, modoSuperv, activo:true, createdAt:new Date().toISOString()});
+    }
+    await persist();
+    closeHabitSheet();
+    render();
+    toast("Hábito guardado");
+  });
+
+  document.getElementById("habit-delete").addEventListener("click", async ()=>{
+    if(!editingHabitId) return;
+    if(!confirm("¿Eliminar este hábito y todo su historial?")) return;
+    state.habits = state.habits.filter(h=>h.id!==editingHabitId);
+    Object.keys(state.logs).forEach(d=> delete state.logs[d][editingHabitId]);
+    await persist();
+    closeHabitSheet();
+    render();
+    toast("Hábito eliminado");
+  });
+
+  // ---------- Log sheet (para días pasados/mini-semana/año) ----------
+  function openLogSheet(habitId, dateStr){
+    const habit = state.habits.find(h=>h.id===habitId);
+    currentLogCtx = {habitId, dateStr};
+    const d = new Date(dateStr+"T00:00:00");
+    document.getElementById("log-date-label").textContent = d.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"});
+    document.getElementById("log-habit-name").textContent = `${CATEGORIES[habit.categoria].emoji} ${habit.nombre}`;
+    const st = logStatus(habitId, dateStr);
+    document.getElementById("log-no").classList.toggle("active-no", st==="no");
+    document.getElementById("log-superv").classList.toggle("active-superv", st==="superv");
+    document.getElementById("log-normal").classList.toggle("active-normal", st==="normal");
+    document.getElementById("log-backdrop").classList.add("open");
+  }
+  function closeLogSheet(){ document.getElementById("log-backdrop").classList.remove("open"); currentLogCtx=null; }
+  document.getElementById("log-cancel").addEventListener("click", closeLogSheet);
+  document.getElementById("log-backdrop").addEventListener("click",(e)=>{ if(e.target.id==="log-backdrop") closeLogSheet(); });
+
+  ["no","superv","normal"].forEach(status=>{
+    document.getElementById("log-"+status).addEventListener("click", async ()=>{
+      if(!currentLogCtx) return;
+      const {habitId, dateStr} = currentLogCtx;
+      if(!state.logs[dateStr]) state.logs[dateStr] = {};
+      state.logs[dateStr][habitId] = status;
+      await persist();
+      closeLogSheet();
+      render();
+    });
+  });
+
+  loadData();
+})();
+</script>
+</body>
+</html>
