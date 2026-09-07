@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MemoryForge">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<title>MemoryForge · Banco ENARM</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --paper:#0f172a;--card:#1e293b;--mist:#2d3f55;
+  --accent:#6c4ff7;--accent2:#e84393;--gold:#f0a500;
+  --green:#22c55e;--red:#ef4444;--text:#f1f5f9;--muted:#94a3b8;
+  --shadow:0 8px 40px rgba(0,0,0,0.35);--r:20px;
+}
+html,body{background:var(--paper);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;min-height:-webkit-fill-available;}
+body{padding-bottom:40px;}
+h1,h2,h3,.display{font-family:'Fraunces',serif;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;}
+
+.topbar{
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;
+  padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top));
+  background:rgba(15,23,42,0.85);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.back-btn{
+  width:40px;height:40px;border-radius:12px;flex-shrink:0;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);
+  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+  transition:all .2s;
+}
+.back-btn:hover{background:rgba(255,255,255,0.12);transform:translateX(-2px);}
+.topbar-title{font-family:'Fraunces',serif;font-weight:700;font-size:19px;flex:1;}
+.topbar-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.apikey-pill{
+  background:var(--card);border:1.5px solid var(--mist);border-radius:10px;padding:7px 13px;
+  font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);white-space:nowrap;
+}
+
+.wrap{max-width:760px;margin:0 auto;padding:20px 18px 0;display:flex;flex-direction:column;gap:20px;}
+
+.panel{background:var(--card);border:1px solid rgba(255,255,255,0.06);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+.panel-title{font-family:'Fraunces',serif;font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px;}
+
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:12px;padding:11px 20px;font-size:13.5px;font-weight:700;cursor:pointer;min-height:44px;}
+.btn-secondary{background:rgba(255,255,255,0.06);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:11px 20px;font-size:13.5px;font-weight:700;cursor:pointer;min-height:44px;}
+.btn-danger-ghost{background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+
+/* Tema cards */
+.tema-row{
+  display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;
+  background:rgba(255,255,255,0.03);border:1.5px solid rgba(255,255,255,0.06);margin-bottom:9px;
+  cursor:pointer;transition:all .15s;
+}
+.tema-row:hover{border-color:rgba(108,79,247,0.35);}
+.tema-row.selected{border-color:var(--accent);background:rgba(108,79,247,0.08);}
+.tema-check{
+  width:22px;height:22px;border-radius:7px;border:2px solid var(--mist);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;
+}
+.tema-row.selected .tema-check{background:var(--accent);border-color:var(--accent);}
+.tema-info{flex:1;min-width:0;}
+.tema-name{font-weight:700;font-size:14px;}
+.tema-meta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.tema-acc{font-size:12.5px;font-weight:700;flex-shrink:0;}
+
+.empty-state{text-align:center;padding:34px 14px;color:var(--muted);font-size:13.5px;line-height:1.7;}
+.empty-state .ico{font-size:38px;margin-bottom:10px;}
+
+.cfg-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+.cfg-pill{
+  padding:8px 15px;border-radius:11px;border:1.5px solid var(--mist);background:var(--paper);
+  color:var(--muted);font-size:12.5px;font-weight:700;cursor:pointer;
+}
+.cfg-pill.sel{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* Import modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:80;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal-box{width:100%;max-width:560px;max-height:86vh;overflow-y:auto;background:var(--card);border-radius:22px;padding:24px;box-shadow:var(--shadow);}
+.modal-box h2{font-size:17px;margin-bottom:16px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+.field input[type=text]{width:100%;background:var(--paper);border:1.5px solid var(--mist);border-radius:11px;padding:11px 13px;color:var(--text);font-size:14px;}
+.field textarea{width:100%;background:var(--paper);border:1.5px solid var(--mist);border-radius:11px;padding:12px 13px;color:var(--text);font-size:12.5px;font-family:monospace;min-height:200px;resize:vertical;}
+.parse-preview{margin-top:10px;padding:10px 13px;border-radius:10px;font-size:12.5px;display:none;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+
+/* ── Exam ── */
+#examScreen{display:none;position:fixed;inset:0;background:var(--paper);z-index:60;overflow-y:auto;}
+#examScreen.show{display:block;}
+.exam-topbar{
+  position:sticky;top:0;z-index:5;background:rgba(15,23,42,0.92);backdrop-filter:blur(10px);
+  padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top));
+  border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;
+}
+.exam-prog-track{flex:1;height:6px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;}
+.exam-prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;transition:width .3s;}
+.exam-count{font-size:12.5px;color:var(--muted);font-weight:700;white-space:nowrap;}
+.blind-badge{background:rgba(240,165,0,0.15);color:var(--gold);border:1px solid rgba(240,165,0,0.35);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;white-space:nowrap;}
+
+.exam-body{max-width:680px;margin:0 auto;padding:22px 18px 60px;}
+.caso-card{background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.2);border-radius:18px;padding:18px 20px;margin-bottom:18px;}
+.caso-eyebrow{font-size:11px;font-weight:700;color:#22d3ee;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.caso-text{font-size:13px;color:rgba(255,255,255,0.8);line-height:1.65;white-space:pre-wrap;}
+.caso-img,.preg-img{max-width:100%;max-height:240px;border-radius:12px;margin-bottom:12px;display:block;}
+
+.q-card{background:var(--card);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;}
+.q-eyebrow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.q-text{font-size:clamp(15px,2.3vw,19px);font-weight:600;font-family:'Fraunces',serif;line-height:1.4;}
+
+.opts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+@media(max-width:520px){.opts-grid{grid-template-columns:1fr;}}
+.opt-btn{
+  display:flex;align-items:center;gap:11px;background:var(--card);border:1.5px solid var(--mist);
+  border-radius:13px;padding:13px 15px;cursor:pointer;text-align:left;font-size:13.5px;color:var(--text);
+  transition:all .15s;
+}
+.opt-btn:hover:not(:disabled){border-color:rgba(108,79,247,0.5);}
+.opt-btn:disabled{cursor:default;}
+.opt-letter{
+  width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.06);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;
+}
+.opt-btn.correct{border-color:var(--green);background:rgba(34,197,94,0.1);}
+.opt-btn.correct .opt-letter{background:var(--green);color:#fff;}
+.opt-btn.wrong{border-color:var(--red);background:rgba(239,68,68,0.1);}
+.opt-btn.wrong .opt-letter{background:var(--red);color:#fff;}
+.opt-btn.reveal{border-color:var(--green);}
+.opt-btn.reveal .opt-letter{background:rgba(34,197,94,0.3);}
+
+.feedback-bar{border-radius:16px;padding:16px 18px;margin-bottom:16px;display:none;}
+.feedback-bar.show{display:block;}
+.feedback-bar.correct-fb{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);}
+.feedback-bar.wrong-fb{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);}
+.fb-title{font-weight:700;font-size:13.5px;margin-bottom:6px;display:flex;align-items:center;gap:7px;}
+.fb-title.ok{color:#4ade80;}
+.fb-title.no{color:#f87171;}
+.fb-text{font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6;}
+.btn-ai-explain{
+  margin-top:10px;background:rgba(108,79,247,0.15);color:var(--accent);border:1px solid rgba(108,79,247,0.35);
+  border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;
+}
+.btn-ai-explain:disabled{opacity:.5;cursor:default;}
+
+.exam-actions{display:flex;justify-content:flex-end;}
+.btn-next{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:13px;padding:13px 26px;font-size:14px;font-weight:700;cursor:pointer;display:none;min-height:46px;}
+.btn-next.show{display:inline-flex;align-items:center;gap:6px;}
+
+/* ── Results ── */
+#resultsScreen{display:none;position:fixed;inset:0;background:var(--paper);z-index:70;overflow-y:auto;}
+#resultsScreen.show{display:block;}
+.results-wrap{max-width:600px;margin:0 auto;padding:40px 20px 60px;padding-top:calc(40px + env(safe-area-inset-top));}
+.results-hero{text-align:center;margin-bottom:26px;}
+.results-score{font-family:'Fraunces',serif;font-weight:700;font-size:52px;line-height:1;margin-bottom:8px;}
+.results-title{font-size:15px;color:var(--muted);}
+.weak-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+.weak-row:last-child{border-bottom:none;}
+.weak-name{flex:1;font-size:13.5px;font-weight:600;}
+.weak-track{width:90px;height:8px;border-radius:5px;background:rgba(255,255,255,0.06);overflow:hidden;}
+.weak-fill{height:100%;border-radius:5px;}
+.weak-pct{font-size:12.5px;font-weight:700;width:38px;text-align:right;}
+.results-actions{display:flex;gap:10px;margin-top:22px;}
+.results-actions button{flex:1;}
+
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--card);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;transition:all .25s;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{background:#7f1d1d;color:#fca5a5;}
+.toast.success{background:#14532d;color:#86efac;}
+
+/* ── Cross navigation ── */
+.cross-nav{display:flex;gap:8px;overflow-x:auto;padding:14px 18px 0;max-width:760px;margin:0 auto;-webkit-overflow-scrolling:touch;}
+.cross-nav a{flex-shrink:0;display:flex;align-items:center;gap:6px;background:var(--card);border:1.5px solid var(--mist);border-radius:11px;padding:8px 14px;font-size:12.5px;font-weight:700;color:var(--muted);text-decoration:none;white-space:nowrap;transition:all .2s;}
+.cross-nav a:hover{border-color:rgba(108,79,247,0.5);color:var(--text);}
+.cross-nav a.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="back-btn" href="flashcards.html" aria-label="Volver">←</a>
+  <div style="flex:1">
+    <div class="topbar-title">🎯 Banco ENARM</div>
+    <div class="topbar-sub">Modo ciego · separado de tus mazos de estudio</div>
+  </div>
+  <button class="apikey-pill" id="btnApiKey">🔑 API</button>
+  <button class="apikey-pill" id="btnSyncPassphrase" style="margin-left:6px;">🔄 Sync</button>
+</div>
+<div class="cross-nav">
+  <a href="flashcards.html">📚 Estudiar</a>
+  <a href="stats.html">📊 Stats</a>
+  <a href="pomodoro.html">⏱️ Focus</a>
+  <a href="banco-enarm.html" class="active">🎯 Banco</a>
+  <a href="sesion.html">🎯 Sesión</a>
+  <a href="perlas.html">💎 Perlas</a>
+  <a href="guardia.html">🚨 Guardia</a>
+  <a href="pase-visita.html">🩺 Visita</a>
+</div>
+
+
+<div class="wrap">
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">📚 Temas del banco</div>
+      <button class="btn-secondary" id="btnImportTema">📥 Importar</button>
+    </div>
+    <div id="temasList"></div>
+    <div class="cfg-row" id="numQRow" style="display:none;">
+      <span style="font-size:12px;color:var(--muted);align-self:center;margin-right:4px;">Preguntas:</span>
+      <button class="cfg-pill sel" data-numq="all">Todas</button>
+      <button class="cfg-pill" data-numq="10">10</button>
+      <button class="cfg-pill" data-numq="20">20</button>
+      <button class="cfg-pill" data-numq="50">50</button>
+    </div>
+    <div style="margin-top:16px;">
+      <button class="btn-primary" id="btnStartBlind" style="width:100%;">🎯 Iniciar modo ciego</button>
+    </div>
+  </div>
+
+  <div class="panel" id="historialPanel" style="display:none;">
+    <div class="panel-head"><div class="panel-title">🕓 Intentos anteriores</div></div>
+    <div id="historialList"></div>
+  </div>
+
+</div>
+
+<!-- Import modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <h2>📥 Importar tema al banco</h2>
+    <div class="field">
+      <label>Nombre del tema (ej. "ENARM 2023")</label>
+      <input type="text" id="temaNameInput" placeholder="ENARM 2023 — Medicina Interna">
+    </div>
+    <div class="field">
+      <label>JSON de casos (mismo formato que el módulo ENARM)</label>
+      <textarea id="temaJsonInput" placeholder='{"bloque":{"casos":[...]}}'></textarea>
+      <div class="parse-preview" id="parsePreview"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btnImportCancel">Cancelar</button>
+      <button class="btn-primary" id="btnImportConfirm">Agregar al banco</button>
+    </div>
+  </div>
+</div>
+
+<!-- Exam screen -->
+<div id="examScreen">
+  <div class="exam-topbar">
+    <div class="exam-prog-track"><div class="exam-prog-fill" id="examProgFill" style="width:0%"></div></div>
+    <div class="exam-count" id="examCount">0/0</div>
+    <div class="blind-badge">🙈 Ciego</div>
+  </div>
+  <div class="exam-body">
+    <div class="caso-card" id="casoCard" style="display:none;">
+      <div class="caso-eyebrow">📋 Caso clínico</div>
+      <div id="casoImgWrap"></div>
+      <div class="caso-text" id="casoText"></div>
+    </div>
+    <div class="q-card">
+      <div class="q-eyebrow" id="qEyebrow">Pregunta</div>
+      <div id="qImgWrap"></div>
+      <div class="q-text" id="qText"></div>
+    </div>
+    <div class="opts-grid" id="optsGrid"></div>
+    <div class="feedback-bar" id="feedbackBar">
+      <div class="fb-title" id="fbTitle"></div>
+      <div class="fb-text" id="fbText"></div>
+      <button class="btn-ai-explain" id="btnAiExplain" style="display:none;">🤖 Generar explicación con IA</button>
+    </div>
+    <div class="exam-actions">
+      <button class="btn-next" id="btnNext">Siguiente →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Results screen -->
+<div id="resultsScreen">
+  <div class="results-wrap">
+    <div class="results-hero">
+      <div class="results-score" id="resScore">0%</div>
+      <div class="results-title" id="resTitle">0/0 correctas</div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">🎯 Áreas débiles</div></div>
+      <div id="weakList"></div>
+    </div>
+    <div class="results-actions">
+      <button class="btn-secondary" id="btnResHome">← Banco</button>
+      <button class="btn-primary" id="btnResRetry">🔄 Otro intento</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════
+//  UTILIDADES COMPARTIDAS
+// ══════════════════════════════════════
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(type?' '+type:'');
+  clearTimeout(window._toastT); window._toastT=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── Saneamiento de JSON pegado (mismo criterio que flashcards.html) ──
+function sanitizeJSONText(text){
+  let result='',inString=false,escaped=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inString){
+      if(escaped){ result+=ch; escaped=false; continue; }
+      if(ch==='\\'){ result+=ch; escaped=true; continue; }
+      if(ch==='"'){ inString=false; result+=ch; continue; }
+      const code=ch.charCodeAt(0);
+      if(code===10||code===13||code===9){ result+='\\n'; continue; }
+      if(code<0x20){ continue; }
+      result+=ch;
+    } else {
+      if(ch==='"'){ inString=true; result+=ch; continue; }
+      result+=ch;
+    }
+  }
+  return result;
+}
+function cleanText(s){ if(typeof s!=='string') return s; return s.replace(/\s+/g,' ').replace(/ +([.,;:])/g,'$1').trim(); }
+function deepCleanStrings(obj){
+  if(typeof obj==='string') return cleanText(obj);
+  if(Array.isArray(obj)) return obj.map(deepCleanStrings);
+  if(obj && typeof obj==='object'){ const out={}; for(const k in obj) out[k]=deepCleanStrings(obj[k]); return out; }
+  return obj;
+}
+// Acepta el mismo formato que el módulo ENARM: {bloque:{casos:[{viñeta,especialidad,preguntas:[...]}]}}
+// (también tolera el formato "Format 1" en array plano por si acaso)
+function parseBancoJSON(text){
+  let cleaned=(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+  let parsed;
+  try{ parsed=JSON.parse(cleaned); }
+  catch(e){ parsed=JSON.parse(sanitizeJSONText(cleaned)); }
+  parsed=deepCleanStrings(parsed);
+  const casos=[];
+
+  if(Array.isArray(parsed) && parsed[0]?.incisos){
+    const grouped={};
+    parsed.forEach(item=>{
+      const key=item.caso||item.id_caso||uid();
+      if(!grouped[key]) grouped[key]={id:String(key), descripcion:item.descripcion||'', especialidad:item.especialidad||'', preguntas:[]};
+      const opts=Object.entries(item.incisos||{}).map(([k,v])=>({letra:k,texto:v,correcta:k===item.respuesta_correcta}));
+      grouped[key].preguntas.push({
+        id:uid(), enunciado:item.pregunta||'', opciones:opts,
+        respuesta_correcta:item.respuesta_correcta, explicacion:item.explicacion||''
+      });
+    });
+    Object.values(grouped).forEach(c=>casos.push(c));
+    return casos;
+  }
+
+  if(parsed.bloque?.casos){
+    parsed.bloque.casos.forEach(caso=>{
+      const v=caso.viñeta||caso.vineta||{};
+      const desc=[
+        v.padecimiento_actual && `Padecimiento: ${v.padecimiento_actual}`,
+        v.antecedentes && `Antecedentes: ${v.antecedentes}`,
+        v.exploracion_fisica && `Exploración: ${v.exploracion_fisica}`,
+        v.estudios && `Estudios: ${v.estudios}`
+      ].filter(Boolean).join('\n');
+      const header = v.edad ? `Paciente de ${v.edad} años (${v.sexo||''}).\n${desc}` : desc;
+      const preguntas=(caso.preguntas||[]).map(p=>{
+        const opts=Object.entries(p.opciones||{}).map(([k,v])=>({letra:k,texto:v,correcta:k===p.respuesta_correcta}));
+        return { id:uid(), enunciado:p.enunciado||p.pregunta||'', opciones:opts, respuesta_correcta:p.respuesta_correcta, explicacion:p.explicacion||'' };
+      });
+      casos.push({ id:caso.id_caso||uid(), descripcion:header, especialidad:caso.especialidad||'', preguntas });
+    });
+    return casos;
+  }
+
+  throw new Error('Formato no reconocido');
+}
+
+// ══════════════════════════════════════
+//  API KEY / IA (comparte la misma clave que flashcards.html)
+// ══════════════════════════════════════
+const API_KEY_STORAGE='memoryforge_apikey';
+function getApiKey(){ return localStorage.getItem(API_KEY_STORAGE)||''; }
+function setApiKey(k){ localStorage.setItem(API_KEY_STORAGE,k); }
+function showApiKeyPrompt(){
+  const current=getApiKey();
+  const key=prompt(
+    current?'Tu API Key actual (edita si quieres cambiarla):':'🔑 Ingresa tu API Key de Anthropic\n(console.anthropic.com → API Keys)',
+    current||'sk-ant-api03-...'
+  );
+  if(key && key.startsWith('sk-ant-')){ setApiKey(key.trim()); showToast('API Key guardada ✓','success'); }
+  else if(key!==null && key!==''){ showToast('API Key inválida — debe empezar con sk-ant-','error'); }
+  updateApiKeyBtn();
+}
+function updateApiKeyBtn(){ document.getElementById('btnApiKey').textContent = getApiKey()?'🔑 ✓':'🔑 API'; }
+document.getElementById('btnApiKey').addEventListener('click',showApiKeyPrompt);
+
+async function callAI(messages, maxTokens=300){
+  const apiKey=getApiKey();
+  if(!apiKey) throw new Error('NO_API_KEY');
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({model:'claude-sonnet-4-6', max_tokens:maxTokens, messages})
+  });
+  if(!resp.ok){ const err=await resp.json().catch(()=>({})); throw new Error(err.error?.message||`HTTP ${resp.status}`); }
+  return resp.json();
+}
+async function generateExplanation(pregunta, casoDesc){
+  const prompt=`Eres un médico docente experto en el ENARM. Explica de forma concisa (máximo 3 oraciones) por qué la respuesta correcta a esta pregunta es "${pregunta.respuesta_correcta}".
+Pregunta: ${pregunta.enunciado}
+Opciones: ${pregunta.opciones.map(o=>o.letra+') '+o.texto).join(' | ')}
+Contexto del caso: ${casoDesc||''}
+Responde SOLO con la explicación clínica, sin saludos ni preámbulos.`;
+  const r=await callAI([{role:'user',content:prompt}],300);
+  return r.content?.map(b=>b.text||'').join('')?.trim()||'';
+}
+
+// ══════════════════════════════════════
+//  STORAGE — separado por completo de mf_enarm_v1 / mazos de estudio
+// ══════════════════════════════════════
+const BANCO_KEY='mf_banco_enarm';
+function loadBancoDB(){
+  try{ return JSON.parse(localStorage.getItem(BANCO_KEY)) || {temas:[],historial:[]}; }
+  catch(e){ return {temas:[],historial:[]}; }
+}
+function saveBancoDB(db){ localStorage.setItem(BANCO_KEY, JSON.stringify(db)); }
+
+let bancoDB = loadBancoDB();
+let selectedTemaIds = new Set(bancoDB.temas.map(t=>t.id)); // por defecto todos seleccionados
+let numQCfg = 'all';
+
+// ══════════════════════════════════════
+//  FIREBASE SYNC — banco de preguntas (mismo patrón que mazos/ENARM, aislado en su propia colección)
+// ══════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyAKvKEYXriAa2jh4cylzk3F4KiOECauTEU",
+  authDomain: "examenes-egel.firebaseapp.com",
+  projectId: "examenes-egel",
+  storageBucket: "examenes-egel.firebasestorage.app",
+  messagingSenderId: "476490499802",
+  appId: "1:476490499802:web:b7f343d5eb5596b1b847e3"
+};
+let fsdb = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  fsdb = firebase.firestore();
+}catch(e){ console.warn('Firebase no disponible:', e); }
+
+const DEVICE_ID = localStorage.getItem('mf_device') || (()=>{const id=uid();localStorage.setItem('mf_device',id);return id;})();
+let fbBancoUnsubscribe = null;
+
+// ── Sync del historial de intentos (documento único, merge por fecha) ──
+async function syncBancoHistorialToFirebase(historial){
+  if(!fsdb) return;
+  try{
+    const profileKey = getFirebaseProfileKey();
+    await fsdb.collection('mf_profiles').doc(profileKey).collection('misc').doc('banco_historial')
+      .set({ data: historial, updatedAt: Date.now(), deviceId: DEVICE_ID });
+  }catch(e){ console.warn('Firebase banco historial sync error:',e); }
+}
+async function loadBancoHistorialFromFirebase(){
+  if(!fsdb) return;
+  try{
+    const profileKey = getFirebaseProfileKey();
+    const doc = await fsdb.collection('mf_profiles').doc(profileKey).collection('misc').doc('banco_historial').get();
+    if(!doc.exists){
+      if(bancoDB.historial.length) syncBancoHistorialToFirebase(bancoDB.historial);
+      return;
+    }
+    const remote = doc.data().data||[];
+    const localIds = new Set(bancoDB.historial.map(h=>h.id));
+    const merged = [...bancoDB.historial, ...remote.filter(h=>!localIds.has(h.id))];
+    if(merged.length !== bancoDB.historial.length){
+      bancoDB.historial = merged;
+      saveBancoDB(bancoDB);
+    }
+    syncBancoHistorialToFirebase(bancoDB.historial);
+  }catch(e){ console.warn('Firebase banco historial load error:',e); }
+}
+
+function normalizeSyncKey(str){
+  return str.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]/g,"_");
+}
+// ── FRASE DE SINCRONIZACIÓN (misma frase en todos tus dispositivos y módulos) ──
+function getSyncPassphrase(){ return localStorage.getItem("mf_sync_passphrase")||""; }
+function setSyncPassphrase(p){ localStorage.setItem("mf_sync_passphrase", p); }
+function showSyncPassphrasePrompt(){
+  const current = getSyncPassphrase();
+  const val = prompt(
+    current
+      ? "🔑 Tu frase de sincronización actual (edítala si quieres cambiarla):\n\nEscribe la MISMA frase en cada dispositivo y módulo para que todo se sincronice automáticamente."
+      : "🔑 Crea una frase de sincronización\n\nEscribe la MISMA frase en cada dispositivo (celular, laptop, etc.) y en cada módulo (flashcards, banco, guardia, pase de visita, stats, hábitos) para que todo se sincronice solo entre ellos.",
+    current
+  );
+  if(val===null) return;
+  const trimmed = val.trim();
+  setSyncPassphrase(trimmed);
+  showToast(trimmed ? "🔑 Frase de sincronización guardada" : "Frase de sincronización eliminada", "success");
+}
+document.getElementById("btnSyncPassphrase").addEventListener("click", showSyncPassphrasePrompt);
+function getFirebaseProfileKey(){
+  try{
+    const passphrase = localStorage.getItem("mf_sync_passphrase")||"";
+    if(passphrase) return "phrase_"+normalizeSyncKey(passphrase);
+    const profiles = JSON.parse(localStorage.getItem("mf_profiles"))||[];
+    const activeId = localStorage.getItem("mf_active_profile");
+    const profile = profiles.find(p=>p.id===activeId);
+    if(!profile) return "default";
+    return normalizeSyncKey(profile.name);
+  }catch(e){ return "default"; }
+}
+function stripBancoImages(tema){
+  return {
+    ...tema,
+    casos: (tema.casos||[]).map(c=>({
+      ...c, image: undefined,
+      preguntas: (c.preguntas||[]).map(p=>({...p, image: undefined}))
+    }))
+  };
+}
+async function syncTemaToFirebase(tema){
+  if(!fsdb || !tema) return;
+  try{
+    const profileKey = getFirebaseProfileKey();
+    await fsdb.collection('mf_profiles').doc(profileKey)
+      .collection('banco_temas').doc(tema.id).set({
+        ...stripBancoImages(tema), updatedAt: Date.now(), deviceId: DEVICE_ID
+      });
+  }catch(e){ console.warn('Firebase banco sync error:',e); }
+}
+async function deleteTemaFromFirebase(temaId){
+  if(!fsdb) return;
+  try{
+    const profileKey = getFirebaseProfileKey();
+    await fsdb.collection('mf_profiles').doc(profileKey).collection('banco_temas').doc(temaId).delete();
+  }catch(e){ console.warn('Firebase banco delete error:',e); }
+}
+function mergePregunta(localP, fbP){
+  if(!localP) return fbP;
+  if(!fbP) return localP;
+  const image = localP.image || undefined;
+  return {...fbP, image, explicacion: localP.explicacion || fbP.explicacion};
+}
+function mergeTema(localTema, fbTema){
+  const localCasosMap = {};
+  (localTema?.casos||[]).forEach(c=>localCasosMap[c.id]=c);
+  const mergedCasos = (fbTema.casos||[]).map(fbCaso=>{
+    const localCaso = localCasosMap[fbCaso.id];
+    if(!localCaso) return {...fbCaso, image: undefined};
+    const localPregMap = {};
+    localCaso.preguntas.forEach(p=>localPregMap[p.id]=p);
+    const mergedPreguntas = (fbCaso.preguntas||[]).map(fbP=>mergePregunta(localPregMap[fbP.id], fbP));
+    localCaso.preguntas.forEach(lp=>{ if(!mergedPreguntas.find(p=>p.id===lp.id)) mergedPreguntas.push(lp); });
+    return { ...fbCaso, image: localCaso.image || undefined, preguntas: mergedPreguntas };
+  });
+  (localTema?.casos||[]).forEach(lc=>{ if(!mergedCasos.find(c=>c.id===lc.id)) mergedCasos.push(lc); });
+  return { ...fbTema, casos: mergedCasos };
+}
+function startBancoFirebaseListener(){
+  if(!fsdb) return;
+  if(fbBancoUnsubscribe) fbBancoUnsubscribe();
+  const profileKey = getFirebaseProfileKey();
+  fbBancoUnsubscribe = fsdb.collection('mf_profiles').doc(profileKey)
+    .collection('banco_temas').orderBy('updatedAt','desc')
+    .onSnapshot(snap=>{
+      if(snap.empty) return;
+      let changed=false;
+      snap.docChanges().forEach(change=>{
+        const fbTema = change.doc.data();
+        if(fbTema.deviceId === DEVICE_ID) return;
+        if(change.type==='removed'){
+          bancoDB.temas = bancoDB.temas.filter(t=>t.id!==fbTema.id);
+          changed=true;
+        } else {
+          const idx = bancoDB.temas.findIndex(t=>t.id===fbTema.id);
+          if(idx>-1) bancoDB.temas[idx] = mergeTema(bancoDB.temas[idx], fbTema);
+          else { bancoDB.temas.push(mergeTema(null, fbTema)); selectedTemaIds.add(fbTema.id); }
+          changed=true;
+        }
+      });
+      if(changed){ saveBancoDB(bancoDB); renderTemasList(); showToast('🔄 Banco sincronizado','success'); }
+    }, e=>console.warn('Firebase banco listener error:',e));
+}
+async function loadBancoFromFirebase(){
+  if(!fsdb) return Promise.resolve();
+  try{
+    const profileKey = getFirebaseProfileKey();
+    const snap = await fsdb.collection('mf_profiles').doc(profileKey)
+      .collection('banco_temas').orderBy('updatedAt','desc').get();
+    if(snap.empty){
+      // Cajón vacío (primera vez con esta llave) — sube lo que ya existe localmente
+      if(bancoDB.temas.length) bancoDB.temas.forEach(t=>syncTemaToFirebase(t));
+      startBancoFirebaseListener();
+      return;
+    }
+    let changed=false;
+    snap.docs.map(d=>d.data()).forEach(fbTema=>{
+      const idx = bancoDB.temas.findIndex(t=>t.id===fbTema.id);
+      if(idx>-1){ bancoDB.temas[idx] = mergeTema(bancoDB.temas[idx], fbTema); changed=true; }
+      else { bancoDB.temas.push(mergeTema(null, fbTema)); selectedTemaIds.add(fbTema.id); changed=true; }
+    });
+    if(changed){ saveBancoDB(bancoDB); bancoDB.temas.forEach(t=>syncTemaToFirebase(t)); }
+    startBancoFirebaseListener();
+  }catch(e){ console.warn('Firebase banco load error:',e); startBancoFirebaseListener(); }
+}
+
+// ══════════════════════════════════════
+//  HOME — lista de temas
+// ══════════════════════════════════════
+function renderTemasList(){
+  const list=document.getElementById('temasList');
+  if(!bancoDB.temas.length){
+    list.innerHTML=`<div class="empty-state">
+      <div class="ico">🎯</div>
+      <p>Todavía no importas ningún tema.<br>Usa <strong>📥 Importar</strong> para agregar preguntas de años anteriores.</p>
+    </div>`;
+    document.getElementById('numQRow').style.display='none';
+    document.getElementById('btnStartBlind').disabled=true;
+    document.getElementById('btnStartBlind').style.opacity='0.5';
+    return;
+  }
+  document.getElementById('numQRow').style.display='flex';
+  document.getElementById('btnStartBlind').disabled=false;
+  document.getElementById('btnStartBlind').style.opacity='1';
+
+  list.innerHTML = bancoDB.temas.map(tema=>{
+    const totalPregs = tema.casos.reduce((a,c)=>a+c.preguntas.length,0);
+    const stats = temaHistorialStats(tema.id);
+    const accHTML = stats.total>0
+      ? `<div class="tema-acc" style="color:${stats.pct>=70?'#4ade80':stats.pct>=40?'var(--gold)':'#f87171'}">${stats.pct}%</div>`
+      : `<div class="tema-acc" style="color:var(--muted);font-weight:600;">—</div>`;
+    const selected = selectedTemaIds.has(tema.id);
+    return `<div class="tema-row ${selected?'selected':''}" data-tema-id="${tema.id}">
+      <div class="tema-check">${selected?'✓':''}</div>
+      <div class="tema-info">
+        <div class="tema-name">${esc(tema.nombre)}</div>
+        <div class="tema-meta">${tema.casos.length} casos · ${totalPregs} preguntas</div>
+      </div>
+      ${accHTML}
+      <button class="btn-danger-ghost" data-del-tema="${tema.id}" title="Eliminar tema">🗑</button>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.tema-row').forEach(row=>{
+    row.addEventListener('click',e=>{
+      if(e.target.closest('[data-del-tema]')) return;
+      const id=row.dataset.temaId;
+      if(selectedTemaIds.has(id)) selectedTemaIds.delete(id); else selectedTemaIds.add(id);
+      renderTemasList();
+    });
+  });
+  list.querySelectorAll('[data-del-tema]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      if(!confirm('¿Eliminar este tema del banco? No afecta tus mazos de estudio.')) return;
+      bancoDB.temas = bancoDB.temas.filter(t=>t.id!==btn.dataset.delTema);
+      selectedTemaIds.delete(btn.dataset.delTema);
+      saveBancoDB(bancoDB);
+      if(fsdb) deleteTemaFromFirebase(btn.dataset.delTema);
+      renderTemasList();
+    });
+  });
+}
+
+function temaHistorialStats(temaId){
+  const attempts = bancoDB.historial.filter(h=>h.temaIds.includes(temaId));
+  if(!attempts.length) return {total:0,correct:0,pct:0};
+  const total = attempts.reduce((a,h)=>a+h.total,0);
+  const correct = attempts.reduce((a,h)=>a+h.correct,0);
+  return {total,correct,pct: total>0?Math.round(correct/total*100):0};
+}
+
+document.querySelectorAll('[data-numq]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('[data-numq]').forEach(b=>b.classList.remove('sel'));
+    btn.classList.add('sel');
+    numQCfg = btn.dataset.numq==='all' ? 'all' : parseInt(btn.dataset.numq);
+  });
+});
+
+function renderHistorial(){
+  const panel=document.getElementById('historialPanel');
+  const list=document.getElementById('historialList');
+  if(!bancoDB.historial.length){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  const recent=[...bancoDB.historial].reverse().slice(0,8);
+  list.innerHTML = recent.map(h=>{
+    const pct = h.total>0?Math.round(h.correct/h.total*100):0;
+    const date = new Date(h.date).toLocaleDateString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    const color = pct>=70?'#4ade80':pct>=40?'var(--gold)':'#f87171';
+    return `<div class="weak-row">
+      <div class="weak-name">${esc(h.temaNombres.join(', '))}<div style="font-size:11px;color:var(--muted);font-weight:400;margin-top:2px;">${date}</div></div>
+      <div style="font-weight:700;color:${color};">${h.correct}/${h.total} · ${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  IMPORTAR TEMA
+// ══════════════════════════════════════
+document.getElementById('btnImportTema').addEventListener('click',()=>{
+  document.getElementById('temaNameInput').value='';
+  document.getElementById('temaJsonInput').value='';
+  document.getElementById('parsePreview').style.display='none';
+  document.getElementById('importModal').classList.add('open');
+});
+document.getElementById('btnImportCancel').addEventListener('click',()=>document.getElementById('importModal').classList.remove('open'));
+document.getElementById('importModal').addEventListener('click',e=>{ if(e.target.id==='importModal') document.getElementById('importModal').classList.remove('open'); });
+
+document.getElementById('temaJsonInput').addEventListener('input',()=>{
+  const preview=document.getElementById('parsePreview');
+  const text=document.getElementById('temaJsonInput').value.trim();
+  if(!text){ preview.style.display='none'; return; }
+  try{
+    const casos=parseBancoJSON(text);
+    const totalPregs=casos.reduce((a,c)=>a+c.preguntas.length,0);
+    preview.style.display='block';
+    preview.style.background='rgba(34,197,94,0.1)';
+    preview.style.border='1px solid rgba(34,197,94,0.3)';
+    preview.style.color='#4ade80';
+    preview.textContent=`✅ ${casos.length} casos · ${totalPregs} preguntas detectadas`;
+  }catch(e){
+    preview.style.display='block';
+    preview.style.background='rgba(239,68,68,0.1)';
+    preview.style.border='1px solid rgba(239,68,68,0.3)';
+    preview.style.color='#f87171';
+    preview.textContent='❌ '+e.message;
+  }
+});
+
+document.getElementById('btnImportConfirm').addEventListener('click',()=>{
+  const nombre=document.getElementById('temaNameInput').value.trim();
+  const text=document.getElementById('temaJsonInput').value.trim();
+  if(!nombre){ showToast('Ponle un nombre al tema','error'); return; }
+  if(!text){ showToast('Pega el JSON de casos','error'); return; }
+  try{
+    const casos=parseBancoJSON(text);
+    if(!casos.length){ showToast('No se detectaron casos','error'); return; }
+    const tema={ id:uid(), nombre, createdAt:Date.now(), casos };
+    bancoDB.temas.push(tema);
+    selectedTemaIds.add(tema.id);
+    saveBancoDB(bancoDB);
+    if(fsdb) syncTemaToFirebase(tema);
+    document.getElementById('importModal').classList.remove('open');
+    renderTemasList();
+    showToast(`✅ "${nombre}" agregado al banco`,'success');
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+  }
+});
+
+// ══════════════════════════════════════
+//  MODO CIEGO — examen completamente aleatorio
+// ══════════════════════════════════════
+let blindState = { pairs:[], idx:0, answers:[], temaIds:[], temaNombres:[] };
+
+document.getElementById('btnStartBlind').addEventListener('click',()=>{
+  const temas = bancoDB.temas.filter(t=>selectedTemaIds.has(t.id));
+  if(!temas.length){ showToast('Selecciona al menos un tema','error'); return; }
+
+  let pairs=[];
+  temas.forEach(tema=>{
+    tema.casos.forEach(caso=>{
+      (caso.preguntas||[]).forEach(pregunta=>{
+        pairs.push({caso, pregunta, temaId:tema.id});
+      });
+    });
+  });
+  if(!pairs.length){ showToast('Estos temas no tienen preguntas','error'); return; }
+
+  // Orden completamente aleatorio, sin agrupar por caso — modo ciego real
+  pairs = shuffle(pairs);
+  if(numQCfg!=='all') pairs = pairs.slice(0, numQCfg);
+
+  blindState = { pairs, idx:0, answers:[], temaIds:temas.map(t=>t.id), temaNombres:temas.map(t=>t.nombre) };
+  document.getElementById('examScreen').classList.add('show');
+  showBlindQuestion();
+});
+
+function showBlindQuestion(){
+  if(blindState.idx>=blindState.pairs.length){ endBlindExam(); return; }
+  const {caso,pregunta} = blindState.pairs[blindState.idx];
+  const total=blindState.pairs.length;
+  document.getElementById('examProgFill').style.width=Math.round(blindState.idx/total*100)+'%';
+  document.getElementById('examCount').textContent=`${blindState.idx+1}/${total}`;
+
+  const casoCard=document.getElementById('casoCard');
+  if(caso.descripcion){
+    casoCard.style.display='block';
+    document.getElementById('casoImgWrap').innerHTML = caso.image?`<img class="caso-img" src="${caso.image}">`:'';
+    document.getElementById('casoText').textContent=caso.descripcion;
+  } else {
+    casoCard.style.display='none';
+  }
+  document.getElementById('qEyebrow').textContent = caso.especialidad ? '❓ Pregunta · '+caso.especialidad : '❓ Pregunta';
+  document.getElementById('qImgWrap').innerHTML = pregunta.image?`<img class="preg-img" src="${pregunta.image}">`:'';
+  document.getElementById('qText').textContent = pregunta.enunciado||'—';
+
+  const letters=['A','B','C','D'];
+  const optsGrid=document.getElementById('optsGrid');
+  optsGrid.innerHTML = (pregunta.opciones||[]).map(o=>`
+    <button class="opt-btn" data-letra="${o.letra}">
+      <span class="opt-letter">${o.letra}</span><span>${esc(o.texto)}</span>
+    </button>`).join('');
+  optsGrid.querySelectorAll('.opt-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>selectBlindAnswer(btn, caso, pregunta));
+  });
+
+  document.getElementById('feedbackBar').classList.remove('show');
+  document.getElementById('btnNext').classList.remove('show');
+}
+
+async function selectBlindAnswer(btn, caso, pregunta){
+  document.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
+  const chosen=btn.dataset.letra;
+  const correctOpt=pregunta.opciones.find(o=>o.correcta);
+  const correct=correctOpt?correctOpt.letra:pregunta.respuesta_correcta;
+  const isCorrect=chosen===correct;
+
+  document.querySelectorAll('.opt-btn').forEach(b=>{
+    if(b.dataset.letra===correct) b.classList.add(isCorrect?'correct':'reveal');
+  });
+  if(!isCorrect) btn.classList.add('wrong');
+
+  blindState.answers.push({
+    especialidad: caso.especialidad||'Sin especialidad',
+    isCorrect, temaId: blindState.pairs[blindState.idx].temaId
+  });
+
+  const bar=document.getElementById('feedbackBar');
+  bar.className='feedback-bar show '+(isCorrect?'correct-fb':'wrong-fb');
+  document.getElementById('fbTitle').className='fb-title '+(isCorrect?'ok':'no');
+  document.getElementById('fbTitle').textContent = isCorrect?'✅ Correcto':'❌ Incorrecto';
+  const fbText=document.getElementById('fbText');
+  const aiBtn=document.getElementById('btnAiExplain');
+
+  if(pregunta.explicacion){
+    fbText.textContent=pregunta.explicacion;
+    aiBtn.style.display='none';
+  } else if(getApiKey()){
+    fbText.textContent='Sin explicación guardada para esta pregunta.';
+    aiBtn.style.display='inline-block';
+    aiBtn.disabled=false;
+    aiBtn.textContent='🤖 Generar explicación con IA';
+    aiBtn.onclick=async()=>{
+      aiBtn.disabled=true; aiBtn.textContent='Generando…';
+      try{
+        const exp=await generateExplanation(pregunta, caso.descripcion);
+        if(exp){
+          pregunta.explicacion=exp; // se guarda para la próxima vez
+          saveBancoDB(bancoDB);
+          const temaId = blindState.pairs[blindState.idx].temaId;
+          const tema = bancoDB.temas.find(t=>t.id===temaId);
+          if(fsdb && tema) syncTemaToFirebase(tema);
+          fbText.textContent=exp;
+          aiBtn.style.display='none';
+        } else {
+          aiBtn.disabled=false; aiBtn.textContent='🤖 Generar explicación con IA';
+          showToast('No se pudo generar la explicación','error');
+        }
+      }catch(e){
+        aiBtn.disabled=false; aiBtn.textContent='🤖 Generar explicación con IA';
+        showToast(e.message==='NO_API_KEY'?'Configura tu API Key primero':'Error al generar explicación','error');
+      }
+    };
+  } else {
+    fbText.textContent='Sin explicación guardada. Configura tu API Key (🔑 arriba) para generarla automáticamente.';
+    aiBtn.style.display='none';
+  }
+
+  document.getElementById('btnNext').classList.add('show');
+}
+
+document.getElementById('btnNext').addEventListener('click',()=>{
+  blindState.idx++;
+  showBlindQuestion();
+});
+
+function endBlindExam(){
+  document.getElementById('examScreen').classList.remove('show');
+  const answers=blindState.answers;
+  const total=answers.length;
+  const correct=answers.filter(a=>a.isCorrect).length;
+  const pct=total>0?Math.round(correct/total*100):0;
+
+  // Guardar en historial
+  bancoDB.historial.push({
+    id:uid(), date:Date.now(), temaIds:blindState.temaIds, temaNombres:blindState.temaNombres,
+    total, correct
+  });
+  saveBancoDB(bancoDB);
+  if(fsdb) syncBancoHistorialToFirebase(bancoDB.historial);
+
+  // Reporte de áreas débiles
+  const byEsp={};
+  answers.forEach(a=>{
+    if(!byEsp[a.especialidad]) byEsp[a.especialidad]={total:0,correct:0};
+    byEsp[a.especialidad].total++;
+    if(a.isCorrect) byEsp[a.especialidad].correct++;
+  });
+  const weakRows=Object.entries(byEsp)
+    .map(([esp,s])=>({esp, pct:Math.round(s.correct/s.total*100), total:s.total, correct:s.correct}))
+    .sort((a,b)=>a.pct-b.pct);
+
+  document.getElementById('resScore').textContent=pct+'%';
+  document.getElementById('resScore').style.color = pct>=70?'#4ade80':pct>=40?'var(--gold)':'#f87171';
+  document.getElementById('resTitle').textContent=`${correct}/${total} correctas`;
+
+  const weakList=document.getElementById('weakList');
+  weakList.innerHTML = weakRows.length ? weakRows.map(r=>{
+    const color=r.pct>=70?'#22c55e':r.pct>=40?'var(--gold)':'#ef4444';
+    return `<div class="weak-row">
+      <div class="weak-name">${esc(r.esp)}<div style="font-size:11px;color:var(--muted);font-weight:400;">${r.correct}/${r.total}</div></div>
+      <div class="weak-track"><div class="weak-fill" style="width:${r.pct}%;background:${color}"></div></div>
+      <div class="weak-pct" style="color:${color}">${r.pct}%</div>
+    </div>`;
+  }).join('') : '<div class="empty-state">Sin datos de especialidad en este intento.</div>';
+
+  document.getElementById('resultsScreen').classList.add('show');
+  renderTemasList();
+  renderHistorial();
+}
+
+document.getElementById('btnResHome').addEventListener('click',()=>{
+  document.getElementById('resultsScreen').classList.remove('show');
+});
+document.getElementById('btnResRetry').addEventListener('click',()=>{
+  document.getElementById('resultsScreen').classList.remove('show');
+  document.getElementById('btnStartBlind').click();
+});
+
+// ── INIT ──
+updateApiKeyBtn();
+renderTemasList();
+renderHistorial();
+loadBancoFromFirebase().then(()=>{ renderTemasList(); });
+loadBancoHistorialFromFirebase().then(()=>{ renderHistorial(); });
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW registration failed:', e));
+  });
+}
+</script>
+</body>
+</html>

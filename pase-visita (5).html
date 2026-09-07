@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MemoryForge">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<title>MemoryForge · Pase de Visita</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --paper:#0f172a;--card:#1e293b;--mist:#2d3f55;
+  --accent:#6c4ff7;--accent2:#e84393;--gold:#f0a500;
+  --green:#22c55e;--red:#ef4444;--text:#f1f5f9;--muted:#94a3b8;
+  --shadow:0 8px 40px rgba(0,0,0,0.35);--r:20px;
+}
+html,body{background:var(--paper);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;min-height:-webkit-fill-available;}
+body{padding-bottom:40px;}
+h1,h2,h3,.display{font-family:'Fraunces',serif;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;}
+
+.topbar{
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;
+  padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top));
+  background:rgba(15,23,42,0.85);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.back-btn{
+  width:40px;height:40px;border-radius:12px;flex-shrink:0;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);
+  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+  transition:all .2s;
+}
+.back-btn:hover{background:rgba(255,255,255,0.12);transform:translateX(-2px);}
+.topbar-title{font-family:'Fraunces',serif;font-weight:700;font-size:19px;flex:1;}
+.topbar-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+
+.cross-nav{display:flex;gap:8px;overflow-x:auto;padding:14px 18px 0;max-width:760px;margin:0 auto;-webkit-overflow-scrolling:touch;}
+.cross-nav a{flex-shrink:0;display:flex;align-items:center;gap:6px;background:var(--card);border:1.5px solid var(--mist);border-radius:11px;padding:8px 14px;font-size:12.5px;font-weight:700;color:var(--muted);text-decoration:none;white-space:nowrap;transition:all .2s;}
+.cross-nav a:hover{border-color:rgba(108,79,247,0.5);color:var(--text);}
+.cross-nav a.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* Pestañas Guardia / Pase de visita — familia "simulación clínica" */
+.sim-tabs{display:flex;gap:8px;max-width:760px;margin:14px auto 0;padding:0 18px;}
+.sim-tab{flex:1;text-align:center;padding:11px;border-radius:12px;font-size:13px;font-weight:800;
+  background:var(--card);border:1.5px solid var(--mist);color:var(--muted);}
+.sim-tab.active{background:linear-gradient(135deg,#ef4444,var(--gold));border-color:transparent;color:#fff;}
+
+.wrap{max-width:820px;margin:0 auto;padding:20px 18px 0;display:flex;flex-direction:column;gap:20px;}
+
+.panel{background:var(--card);border:1px solid rgba(255,255,255,0.06);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+.panel-title{font-family:'Fraunces',serif;font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px;}
+
+.btn-primary{background:linear-gradient(135deg,#0ea5e9,var(--accent));color:#fff;border:none;border-radius:12px;padding:11px 20px;font-size:13.5px;font-weight:700;cursor:pointer;min-height:44px;}
+.btn-secondary{background:rgba(255,255,255,0.06);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:11px 20px;font-size:13.5px;font-weight:700;cursor:pointer;min-height:44px;}
+.btn-danger-ghost{background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+
+.caso-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.03);border:1.5px solid rgba(255,255,255,0.06);margin-bottom:9px;cursor:pointer;transition:all .15s;}
+.caso-row:hover{border-color:rgba(14,165,233,0.4);}
+.caso-info{flex:1;min-width:0;}
+.caso-name{font-weight:700;font-size:14px;}
+.caso-meta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.caso-play{background:linear-gradient(135deg,#0ea5e9,var(--accent));color:#fff;border:none;border-radius:9px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;}
+
+.empty-state{text-align:center;padding:34px 14px;color:var(--muted);font-size:13.5px;line-height:1.7;}
+.empty-state .ico{font-size:38px;margin-bottom:10px;}
+
+/* Import modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:80;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal-box{width:100%;max-width:560px;max-height:86vh;overflow-y:auto;background:var(--card);border-radius:22px;padding:24px;box-shadow:var(--shadow);}
+.modal-box h2{font-size:17px;margin-bottom:16px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+.field textarea{width:100%;background:var(--paper);border:1.5px solid var(--mist);border-radius:11px;padding:12px 13px;color:var(--text);font-size:12.5px;font-family:monospace;min-height:220px;resize:vertical;}
+.parse-preview{margin-top:10px;padding:10px 13px;border-radius:10px;font-size:12.5px;display:none;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+
+/* ── Sim screen ── */
+#simScreen{display:none;position:fixed;inset:0;background:var(--paper);z-index:60;overflow-y:auto;}
+#simScreen.show{display:block;}
+.sim-topbar{
+  position:sticky;top:0;z-index:5;background:rgba(15,23,42,0.94);backdrop-filter:blur(10px);
+  padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top));
+  border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;
+}
+.sim-back{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-size:16px;cursor:pointer;flex-shrink:0;}
+.sim-patient-tag{flex:1;font-size:13px;font-weight:700;color:var(--muted);}
+.sim-step-count{font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap;}
+
+.sim-body{max-width:680px;margin:0 auto;padding:20px 18px 60px;}
+
+.sim-path{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+.sim-path-dot{width:9px;height:9px;border-radius:50%;background:var(--mist);}
+.sim-path-dot.estable{background:var(--green);}
+.sim-path-dot.empeora,.sim-path-dot.critico{background:var(--red);}
+.sim-path-dot.recupera{background:var(--gold);}
+.sim-path-dot.aleatorio{background:#a855f7;}
+.sim-path-dot.azar_desfavorable{background:#38bdf8;}
+
+.btn-reveal{
+  width:100%;justify-content:center;background:linear-gradient(135deg,#a855f7,#6c4ff7);
+  color:#fff;border:none;font-weight:800;
+}
+
+.sit-card{background:var(--card);border-radius:18px;padding:20px 22px;box-shadow:var(--shadow);margin-bottom:18px;}
+.sit-eyebrow{font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+.sit-text{font-size:14.5px;line-height:1.65;font-family:'Fraunces',serif;}
+
+.opts-col{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+.opt-btn{
+  display:flex;align-items:flex-start;gap:11px;background:var(--card);border:1.5px solid var(--mist);
+  border-radius:13px;padding:14px 16px;cursor:pointer;text-align:left;font-size:13.5px;color:var(--text);
+  line-height:1.5;transition:all .15s;
+}
+.opt-btn:hover:not(:disabled){border-color:rgba(14,165,233,0.5);}
+.opt-btn:disabled{cursor:default;}
+.opt-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.opt-btn.chosen-good{border-color:var(--green);background:rgba(34,197,94,0.1);}
+.opt-btn.chosen-bad{border-color:var(--red);background:rgba(239,68,68,0.1);}
+
+.pearl-bar{border-radius:16px;padding:16px 18px;margin-bottom:16px;display:none;}
+.pearl-bar.show{display:block;}
+.pearl-bar.pb-good{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);}
+.pearl-bar.pb-bad{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);}
+.pearl-bar.pb-luck{background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);}
+.pb-title{font-weight:700;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:7px;}
+.pb-title.ok{color:#4ade80;}
+.pb-title.no{color:#f87171;}
+.pb-title.luck{color:#38bdf8;}
+.pb-text{font-size:12.5px;color:rgba(255,255,255,0.85);line-height:1.6;}
+
+.sim-actions{display:flex;justify-content:center;}
+.btn-continue{background:linear-gradient(135deg,#0ea5e9,var(--accent));color:#fff;border:none;border-radius:14px;padding:14px 30px;font-size:14.5px;font-weight:800;cursor:pointer;display:none;min-height:48px;}
+.btn-continue.show{display:inline-flex;align-items:center;gap:8px;}
+
+/* ── Final outcome ── */
+#finalScreen{display:none;position:fixed;inset:0;background:var(--paper);z-index:70;overflow-y:auto;}
+#finalScreen.show{display:block;}
+.final-wrap{max-width:600px;margin:0 auto;padding:50px 20px 60px;padding-top:calc(50px + env(safe-area-inset-top));text-align:center;}
+.final-icon{font-size:64px;margin-bottom:14px;}
+.final-title{font-family:'Fraunces',serif;font-weight:700;font-size:24px;margin-bottom:10px;line-height:1.3;}
+.final-desc{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:26px;}
+.final-badge{display:inline-block;padding:7px 18px;border-radius:999px;font-size:12.5px;font-weight:800;margin-bottom:22px;}
+.final-badge.vive{background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.35);}
+.final-badge.vive_complicacion{background:rgba(240,165,0,0.15);color:var(--gold);border:1px solid rgba(240,165,0,0.35);}
+.final-badge.muere{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.35);}
+
+.pearls-recap{text-align:left;background:var(--card);border-radius:18px;padding:20px;margin-bottom:22px;}
+.pearls-recap-title{font-family:'Fraunces',serif;font-weight:700;font-size:15px;margin-bottom:14px;}
+.pr-item{display:flex;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,0.06);font-size:12.5px;line-height:1.55;}
+.pr-item:first-child{border-top:none;}
+.pr-item .pri{font-size:15px;flex-shrink:0;}
+
+.final-actions{display:flex;gap:10px;}
+.final-actions button{flex:1;}
+
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--card);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;transition:all .25s;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{background:#7f1d1d;color:#fca5a5;}
+.toast.success{background:#14532d;color:#86efac;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="back-btn" href="flashcards.html" aria-label="Volver">←</a>
+  <div style="flex:1">
+    <div class="topbar-title">🩺 Pase de Visita</div>
+    <div class="topbar-sub">Cada decisión traza el camino del paciente</div>
+  </div>
+  <button id="btnSyncPassphrase" style="background:var(--card);border:1.5px solid var(--mist);border-radius:10px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);white-space:nowrap;">🔄 Sync</button>
+</div>
+
+<div class="cross-nav">
+  <a href="flashcards.html">📚 Estudiar</a>
+  <a href="stats.html">📊 Stats</a>
+  <a href="pomodoro.html">⏱️ Focus</a>
+  <a href="banco-enarm.html">🎯 Banco</a>
+  <a href="sesion.html">🎯 Sesión</a>
+  <a href="perlas.html">💎 Perlas</a>
+  <a href="guardia.html">🚨 Guardia</a>
+  <a href="pase-visita.html" class="active">🩺 Visita</a>
+</div>
+
+<div class="sim-tabs">
+  <a class="sim-tab" href="guardia.html">🚨 Triage</a>
+  <a class="sim-tab active" href="pase-visita.html">🩺 Pase de Visita</a>
+</div>
+
+<div class="wrap">
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">🩺 Casos disponibles</div>
+      <button class="btn-secondary" id="btnImportCaso">📥 Importar</button>
+    </div>
+    <div id="casosList"></div>
+    <div style="margin-top:14px;">
+      <button class="btn-primary" id="btnCasoAleatorio" style="width:100%;background:linear-gradient(135deg,#a855f7,#6c4ff7);">🎲 Caso aleatorio</button>
+    </div>
+  </div>
+
+  <div class="panel" id="historialPanel" style="display:none;">
+    <div class="panel-head"><div class="panel-title">🕓 Rondas anteriores</div></div>
+    <div id="historialList"></div>
+  </div>
+
+</div>
+
+<!-- Import modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <h2>📥 Importar casos de Pase de Visita</h2>
+    <div class="field">
+      <label>JSON de casos (formato "Pase de Visita")</label>
+      <textarea id="casoJsonInput" placeholder='{"pase_visita":{"casos":[...]}}'></textarea>
+      <div class="parse-preview" id="parsePreview"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btnImportCancel">Cancelar</button>
+      <button class="btn-primary" id="btnImportConfirm">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sim screen -->
+<div id="simScreen">
+  <div class="sim-topbar">
+    <button class="sim-back" id="simBack">←</button>
+    <div class="sim-patient-tag" id="simPatientTag">—</div>
+    <div class="sim-step-count" id="simStepCount">Paso 1</div>
+  </div>
+  <div class="sim-body">
+    <div class="sim-path" id="simPath"></div>
+    <div class="sit-card">
+      <div class="sit-eyebrow">🏥 Situación actual</div>
+      <div class="sit-text" id="sitText">—</div>
+    </div>
+    <div class="opts-col" id="optsCol"></div>
+    <div class="pearl-bar" id="pearlBar">
+      <div class="pb-title" id="pbTitle"></div>
+      <div class="pb-text" id="pbText"></div>
+    </div>
+    <div class="sim-actions">
+      <button class="btn-continue" id="btnContinue">Continuar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Final outcome screen -->
+<div id="finalScreen">
+  <div class="final-wrap">
+    <div class="final-icon" id="finalIcon">🏥</div>
+    <div class="final-badge" id="finalBadge">—</div>
+    <div class="final-title" id="finalTitle">—</div>
+    <div class="final-desc" id="finalDesc">—</div>
+    <div class="pearls-recap">
+      <div class="pearls-recap-title">📖 Recapitulación de perlas</div>
+      <div id="pearlsRecapList"></div>
+    </div>
+    <div class="final-actions">
+      <button class="btn-secondary" id="btnFinalHome">← Casos</button>
+      <button class="btn-primary" id="btnFinalRetry">🔄 Repetir caso</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════
+//  UTILIDADES
+// ══════════════════════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(type?' '+type:'');
+  clearTimeout(window._toastT); window._toastT=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+function sanitizeJSONText(text){
+  let result='',inString=false,escaped=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inString){
+      if(escaped){ result+=ch; escaped=false; continue; }
+      if(ch==='\\'){ result+=ch; escaped=true; continue; }
+      if(ch==='"'){ inString=false; result+=ch; continue; }
+      const code=ch.charCodeAt(0);
+      if(code===10||code===13||code===9){ result+='\\n'; continue; }
+      if(code<0x20){ continue; }
+      result+=ch;
+    } else {
+      if(ch==='"'){ inString=true; result+=ch; continue; }
+      result+=ch;
+    }
+  }
+  return result;
+}
+function cleanText(s){ if(typeof s!=='string') return s; return s.replace(/\s+/g,' ').replace(/ +([.,;:])/g,'$1').trim(); }
+function deepCleanStrings(obj){
+  if(typeof obj==='string') return cleanText(obj);
+  if(Array.isArray(obj)) return obj.map(deepCleanStrings);
+  if(obj && typeof obj==='object'){ const out={}; for(const k in obj) out[k]=deepCleanStrings(obj[k]); return out; }
+  return obj;
+}
+function parsePaseVisitaJSON(text){
+  let cleaned=(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+  let parsed;
+  try{ parsed=JSON.parse(cleaned); }
+  catch(e){ parsed=JSON.parse(sanitizeJSONText(cleaned)); }
+  parsed=deepCleanStrings(parsed);
+
+  const rawList = parsed.pase_visita?.casos || (Array.isArray(parsed)?parsed:null);
+  if(!rawList) throw new Error('Formato no reconocido — falta pase_visita.casos');
+
+  const casos=[];
+  rawList.forEach(c=>{
+    if(!c.nodos || !c.nodo_inicial) return;
+    let valid=true;
+    Object.values(c.nodos).forEach(n=>{
+      if(n.tipo==='final') return;
+      if(n.tipo==='aleatorio'){
+        if(!n.ramas || !n.ramas.length){ valid=false; return; }
+        n.ramas.forEach(r=>{
+          // Una rama apunta a un nodo LOCAL ("siguiente") o a un grupo de casos ("grupo_destino") —
+          // debe tener exactamente una de las dos formas. Los grupos se validan en tiempo real
+          // (contra la biblioteca completa), no aquí, porque los casos del grupo pueden importarse después.
+          if(!r.siguiente && !r.grupo_destino) valid=false;
+          if(r.siguiente && !c.nodos[r.siguiente]) valid=false;
+        });
+        return;
+      }
+      (n.opciones||[]).forEach(o=>{
+        if(!c.nodos[o.siguiente]) valid=false;
+        if(o.siguiente_fallo && !c.nodos[o.siguiente_fallo]) valid=false;
+      });
+    });
+    if(!c.nodos[c.nodo_inicial]) valid=false;
+    if(!valid) return;
+    casos.push({
+      id: uid(),
+      titulo: c.titulo||'Caso sin título',
+      especialidad: c.especialidad||'General',
+      grupo: c.grupo||null,
+      paciente_inicial: c.paciente_inicial||{},
+      nodo_inicial: c.nodo_inicial,
+      nodos: c.nodos
+    });
+  });
+
+  if(!casos.length) throw new Error('No se detectaron casos válidos (revisa que cada "siguiente" apunte a un nodo existente)');
+  return casos;
+}
+
+// ══════════════════════════════════════
+//  STORAGE + FIREBASE (mismo patrón que guardia.html)
+// ══════════════════════════════════════
+const PV_KEY='mf_pase_visita';
+function loadPvDB(){ try{ return JSON.parse(localStorage.getItem(PV_KEY)) || {casos:[]}; }catch(e){ return {casos:[]}; } }
+function savePvDB(db){ localStorage.setItem(PV_KEY, JSON.stringify(db)); }
+const HISTORIAL_KEY='mf_pase_visita_historial';
+function loadHistorial(){ try{ return JSON.parse(localStorage.getItem(HISTORIAL_KEY))||[]; }catch(e){ return []; } }
+function saveHistorial(h){ localStorage.setItem(HISTORIAL_KEY, JSON.stringify(h)); }
+
+let pvDB = loadPvDB();
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAKvKEYXriAa2jh4cylzk3F4KiOECauTEU",
+  authDomain: "examenes-egel.firebaseapp.com",
+  projectId: "examenes-egel",
+  storageBucket: "examenes-egel.firebasestorage.app",
+  messagingSenderId: "476490499802",
+  appId: "1:476490499802:web:b7f343d5eb5596b1b847e3"
+};
+let fsdb = null;
+try{ firebase.initializeApp(firebaseConfig); fsdb = firebase.firestore(); }catch(e){ console.warn('Firebase no disponible:', e); }
+
+const DEVICE_ID = localStorage.getItem('mf_device') || (()=>{const id=uid();localStorage.setItem('mf_device',id);return id;})();
+let fbPvUnsubscribe = null;
+
+// ── Sync del historial de pase de visita (documento único, merge por id) ──
+async function syncPvHistorialToFirebase(historial){
+  if(!fsdb) return;
+  try{
+    const profileKey = getFirebaseProfileKey();
+    await fsdb.collection('mf_profiles').doc(profileKey).collection('misc').doc('pase_visita_historial')
+      .set({ data: historial, updatedAt: Date.now(), deviceId: DEVICE_ID });
+  }catch(e){ console.warn('Firebase pase visita historial sync error:',e); }
+}
+async function loadPvHistorialFromFirebase(){
+  if(!fsdb) return;
+  try{
+    const profileKey = getFirebaseProfileKey();
+    const doc = await fsdb.collection('mf_profiles').doc(profileKey).collection('misc').doc('pase_visita_historial').get();
+    const hist = loadHistorial();
+    if(!doc.exists){
+      if(hist.length) syncPvHistorialToFirebase(hist);
+      return;
+    }
+    const remote = doc.data().data||[];
+    const localIds = new Set(hist.map(h=>h.id));
+    const merged = [...hist, ...remote.filter(h=>!localIds.has(h.id))];
+    if(merged.length !== hist.length) saveHistorial(merged);
+    syncPvHistorialToFirebase(merged.length !== hist.length ? merged : hist);
+  }catch(e){ console.warn('Firebase pase visita historial load error:',e); }
+}
+
+function normalizeSyncKey(str){
+  return str.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]/g,"_");
+}
+function getSyncPassphrase(){ return localStorage.getItem("mf_sync_passphrase")||""; }
+function setSyncPassphrase(p){ localStorage.setItem("mf_sync_passphrase", p); }
+function showSyncPassphrasePrompt(){
+  const current = getSyncPassphrase();
+  const val = prompt(
+    current
+      ? "🔑 Tu frase de sincronización actual (edítala si quieres cambiarla):\n\nEscribe la MISMA frase en cada dispositivo y módulo para que todo se sincronice automáticamente."
+      : "🔑 Crea una frase de sincronización\n\nEscribe la MISMA frase en cada dispositivo (celular, laptop, etc.) y en cada módulo (flashcards, banco, guardia, pase de visita, stats, hábitos) para que todo se sincronice solo entre ellos.",
+    current
+  );
+  if(val===null) return;
+  const trimmed = val.trim();
+  setSyncPassphrase(trimmed);
+  showToast(trimmed ? "🔑 Frase de sincronización guardada" : "Frase de sincronización eliminada", "success");
+}
+document.getElementById("btnSyncPassphrase").addEventListener("click", showSyncPassphrasePrompt);
+function getFirebaseProfileKey(){
+  try{
+    const passphrase = localStorage.getItem("mf_sync_passphrase")||"";
+    if(passphrase) return "phrase_"+normalizeSyncKey(passphrase);
+    const profiles = JSON.parse(localStorage.getItem("mf_profiles"))||[];
+    const activeId = localStorage.getItem("mf_active_profile");
+    const profile = profiles.find(p=>p.id===activeId);
+    if(!profile) return "default";
+    return normalizeSyncKey(profile.name);
+  }catch(e){ return "default"; }
+}
+async function syncCasoToFirebase(caso){
+  if(!fsdb || !caso) return;
+  try{
+    const profileKey = getFirebaseProfileKey();
+    await fsdb.collection('mf_profiles').doc(profileKey)
+      .collection('pase_visita_casos').doc(caso.id).set({ ...caso, updatedAt: Date.now(), deviceId: DEVICE_ID });
+  }catch(e){ console.warn('Firebase pase visita sync error:',e); }
+}
+async function deleteCasoFromFirebase(casoId){
+  if(!fsdb) return;
+  try{
+    const profileKey = getFirebaseProfileKey();
+    await fsdb.collection('mf_profiles').doc(profileKey).collection('pase_visita_casos').doc(casoId).delete();
+  }catch(e){ console.warn('Firebase pase visita delete error:',e); }
+}
+function startPvFirebaseListener(){
+  if(!fsdb) return;
+  if(fbPvUnsubscribe) fbPvUnsubscribe();
+  const profileKey = getFirebaseProfileKey();
+  fbPvUnsubscribe = fsdb.collection('mf_profiles').doc(profileKey)
+    .collection('pase_visita_casos').orderBy('updatedAt','desc')
+    .onSnapshot(snap=>{
+      if(snap.empty) return;
+      let changed=false;
+      snap.docChanges().forEach(change=>{
+        const fbCaso = change.doc.data();
+        if(fbCaso.deviceId === DEVICE_ID) return;
+        if(change.type==='removed'){ pvDB.casos = pvDB.casos.filter(c=>c.id!==fbCaso.id); changed=true; }
+        else {
+          const idx = pvDB.casos.findIndex(c=>c.id===fbCaso.id);
+          if(idx>-1) pvDB.casos[idx]=fbCaso; else pvDB.casos.push(fbCaso);
+          changed=true;
+        }
+      });
+      if(changed){ savePvDB(pvDB); renderCasosList(); showToast('🔄 Pase de visita sincronizado','success'); }
+    }, e=>console.warn('Firebase pase visita listener error:',e));
+}
+async function loadPvFromFirebase(){
+  if(!fsdb) return Promise.resolve();
+  try{
+    const profileKey = getFirebaseProfileKey();
+    const snap = await fsdb.collection('mf_profiles').doc(profileKey)
+      .collection('pase_visita_casos').orderBy('updatedAt','desc').get();
+    if(snap.empty){
+      // Cajón vacío (primera vez con esta llave) — sube lo que ya existe localmente
+      if(pvDB.casos.length) pvDB.casos.forEach(c=>syncCasoToFirebase(c));
+      startPvFirebaseListener();
+      return;
+    }
+    let changed=false;
+    snap.docs.map(d=>d.data()).forEach(fbCaso=>{
+      const idx = pvDB.casos.findIndex(c=>c.id===fbCaso.id);
+      if(idx>-1){ pvDB.casos[idx]=fbCaso; changed=true; } else { pvDB.casos.push(fbCaso); changed=true; }
+    });
+    const remoteIds = new Set(snap.docs.map(d=>d.id));
+    pvDB.casos.forEach(c=>{ if(!remoteIds.has(c.id)) syncCasoToFirebase(c); });
+    if(changed) savePvDB(pvDB);
+    startPvFirebaseListener();
+  }catch(e){ console.warn('Firebase pase visita load error:',e); startPvFirebaseListener(); }
+}
+
+// ══════════════════════════════════════
+//  HOME
+// ══════════════════════════════════════
+function renderCasosList(){
+  const list=document.getElementById('casosList');
+  if(!pvDB.casos.length){
+    list.innerHTML=`<div class="empty-state">
+      <div class="ico">🩺</div>
+      <p>Todavía no tienes casos de Pase de Visita.<br>Usa <strong>📥 Importar</strong> para agregar un caso con su árbol de decisiones.</p>
+    </div>`;
+    return;
+  }
+  list.innerHTML = pvDB.casos.map(c=>{
+    const grupoTag = c.grupo ? `<span style="background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);border-radius:7px;padding:2px 8px;font-size:10.5px;font-weight:700;margin-left:6px;">🔗 ${esc(c.grupo)}</span>` : '';
+    return `<div class="caso-row" data-caso-id="${c.id}">
+      <div class="caso-info">
+        <div class="caso-name">${esc(c.titulo)}${grupoTag}</div>
+        <div class="caso-meta">${esc(c.especialidad)} · ${c.paciente_inicial?.edad?c.paciente_inicial.edad+' años · ':''}${esc(c.paciente_inicial?.sexo||'')}</div>
+      </div>
+      <button class="caso-play" data-play="${c.id}">▶ Iniciar</button>
+      <button class="btn-danger-ghost" data-del="${c.id}">🗑</button>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-play]').forEach(btn=>{
+    btn.addEventListener('click',e=>{ e.stopPropagation(); startCaso(btn.dataset.play); });
+  });
+  list.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      if(!confirm('¿Eliminar este caso de Pase de Visita?')) return;
+      pvDB.casos = pvDB.casos.filter(c=>c.id!==btn.dataset.del);
+      savePvDB(pvDB);
+      if(fsdb) deleteCasoFromFirebase(btn.dataset.del);
+      renderCasosList();
+    });
+  });
+}
+
+function renderHistorial(){
+  const panel=document.getElementById('historialPanel');
+  const list=document.getElementById('historialList');
+  const hist=loadHistorial();
+  if(!hist.length){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  const recent=[...hist].reverse().slice(0,10);
+  list.innerHTML = recent.map(h=>{
+    const date = new Date(h.date).toLocaleDateString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    const color = h.resultado==='vive'?'#4ade80':h.resultado==='vive_complicacion'?'var(--gold)':'#f87171';
+    const icon = h.resultado==='vive'?'✅':h.resultado==='vive_complicacion'?'⚠️':'☠️';
+    return `<div class="caso-row" style="cursor:default;">
+      <div class="caso-info">
+        <div class="caso-name">${esc(h.casoTitulo)}${h.diagnosticoRevelado?' · '+esc(h.diagnosticoRevelado):''}</div>
+        <div class="caso-meta">${date}</div>
+      </div>
+      <div style="font-weight:700;color:${color};font-size:12.5px;">${icon} ${h.pasos} paso(s)</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  IMPORTAR
+// ══════════════════════════════════════
+document.getElementById('btnImportCaso').addEventListener('click',()=>{
+  document.getElementById('casoJsonInput').value='';
+  document.getElementById('parsePreview').style.display='none';
+  document.getElementById('importModal').classList.add('open');
+});
+document.getElementById('btnImportCancel').addEventListener('click',()=>document.getElementById('importModal').classList.remove('open'));
+document.getElementById('importModal').addEventListener('click',e=>{ if(e.target.id==='importModal') document.getElementById('importModal').classList.remove('open'); });
+
+document.getElementById('casoJsonInput').addEventListener('input',()=>{
+  const preview=document.getElementById('parsePreview');
+  const text=document.getElementById('casoJsonInput').value.trim();
+  if(!text){ preview.style.display='none'; return; }
+  try{
+    const casos=parsePaseVisitaJSON(text);
+    preview.style.display='block';
+    preview.style.background='rgba(34,197,94,0.1)';
+    preview.style.border='1px solid rgba(34,197,94,0.3)';
+    preview.style.color='#4ade80';
+    preview.textContent=`✅ ${casos.length} caso(s) detectados y validados (todos sus nodos conectan bien)`;
+  }catch(e){
+    preview.style.display='block';
+    preview.style.background='rgba(239,68,68,0.1)';
+    preview.style.border='1px solid rgba(239,68,68,0.3)';
+    preview.style.color='#f87171';
+    preview.textContent='❌ '+e.message;
+  }
+});
+
+document.getElementById('btnImportConfirm').addEventListener('click',()=>{
+  const text=document.getElementById('casoJsonInput').value.trim();
+  if(!text){ showToast('Pega el JSON de casos','error'); return; }
+  try{
+    const casos=parsePaseVisitaJSON(text);
+    pvDB.casos.push(...casos);
+    savePvDB(pvDB);
+    if(fsdb) casos.forEach(c=>syncCasoToFirebase(c));
+    document.getElementById('importModal').classList.remove('open');
+    renderCasosList();
+    showToast(`✅ ${casos.length} caso(s) agregados`,'success');
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+  }
+});
+
+// ══════════════════════════════════════
+//  SIMULACIÓN — caminador del árbol de decisiones
+// ══════════════════════════════════════
+let simState = { caso:null, nodeId:null, path:[], pearlsPath:[], diagnosticoRevelado:null, casoTroncoTitulo:null };
+
+function startCaso(casoId){
+  const caso = pvDB.casos.find(c=>c.id===casoId);
+  if(!caso) return;
+  simState = { caso, nodeId: caso.nodo_inicial, path:[], pearlsPath:[], diagnosticoRevelado:null, casoTroncoTitulo:null };
+  document.getElementById('simScreen').classList.add('show');
+  const p = caso.paciente_inicial||{};
+  document.getElementById('simPatientTag').textContent =
+    `${caso.titulo}${p.edad?' · '+p.edad+' años':''}${p.sexo?' · '+p.sexo:''}`;
+  renderNode();
+}
+
+function pickWeightedRandom(ramas){
+  const total = ramas.reduce((a,r)=>a+(r.peso||1),0);
+  let r = Math.random()*total;
+  for(const rama of ramas){
+    r -= (rama.peso||1);
+    if(r<=0) return rama;
+  }
+  return ramas[ramas.length-1];
+}
+
+// Sortea un caso completo de la biblioteca que comparta el mismo "grupo" (ej. varios
+// casos de apendicitis distintos, cargados por separado) — así el mismo nodo aleatorio
+// se vuelve más rico entre más casos de ese grupo tengas importados.
+function pickCasoFromGrupo(grupo, excludeCasoId){
+  const candidatos = pvDB.casos.filter(c=>c.grupo===grupo && c.id!==excludeCasoId);
+  if(!candidatos.length) return null;
+  return candidatos[Math.floor(Math.random()*candidatos.length)];
+}
+// Filtra las ramas que sí se pueden tomar en este momento (una rama con grupo_destino
+// solo está disponible si hay al menos un caso de ese grupo ya importado)
+function getAvailableRamas(ramas, currentCasoId){
+  return ramas.filter(r=>{
+    if(r.grupo_destino) return !!pickCasoFromGrupo(r.grupo_destino, null);
+    return true;
+  });
+}
+
+function renderNode(){
+  const node = simState.caso.nodos[simState.nodeId];
+  if(!node){ showToast('Error: nodo no encontrado','error'); return; }
+
+  if(node.tipo==='final'){ showFinal(node); return; }
+  if(node.tipo==='aleatorio'){ renderRandomNode(node); return; }
+
+  document.getElementById('simStepCount').textContent = `Paso ${simState.path.length+1}`;
+  document.getElementById('sitText').textContent = node.situacion||'—';
+
+  const pathEl = document.getElementById('simPath');
+  pathEl.innerHTML = simState.path.map(p=>`<div class="sim-path-dot ${p.efecto}" title="${esc(p.texto)}"></div>`).join('');
+
+  const optsCol = document.getElementById('optsCol');
+  optsCol.innerHTML = (node.opciones||[]).map((o,i)=>`
+    <button class="opt-btn" data-idx="${i}">
+      <span class="opt-icon">🩺</span><span>${esc(o.texto)}</span>
+    </button>`).join('');
+  optsCol.querySelectorAll('.opt-btn').forEach((btn,i)=>{
+    btn.addEventListener('click',()=>chooseOption(btn, node.opciones[i]));
+  });
+
+  document.getElementById('pearlBar').classList.remove('show');
+  document.getElementById('btnContinue').classList.remove('show');
+}
+
+function renderRandomNode(node){
+  document.getElementById('simStepCount').textContent = `Paso ${simState.path.length+1}`;
+  document.getElementById('sitText').textContent = node.situacion_transicion || node.situacion || 'Los estudios están en proceso...';
+
+  const pathEl = document.getElementById('simPath');
+  pathEl.innerHTML = simState.path.map(p=>`<div class="sim-path-dot ${p.efecto}" title="${esc(p.texto)}"></div>`).join('');
+
+  const optsCol = document.getElementById('optsCol');
+  const disponibles = getAvailableRamas(node.ramas, simState.caso.id);
+  if(!disponibles.length){
+    optsCol.innerHTML = `<div class="empty-state" style="padding:14px;">⚠️ Ninguna rama de este punto tiene casos disponibles todavía (revisa que hayas importado casos con el "grupo" correspondiente).</div>`;
+    document.getElementById('pearlBar').classList.remove('show');
+    document.getElementById('btnContinue').classList.remove('show');
+    return;
+  }
+  optsCol.innerHTML = `<button class="opt-btn btn-reveal" id="btnReveal">🎲 Ver resultados</button>`;
+  document.getElementById('btnReveal').addEventListener('click',()=>{
+    const rama = pickWeightedRandom(disponibles);
+
+    if(rama.grupo_destino){
+      // Sortea un caso COMPLETO de ese grupo (ej. una de 3 variantes de apendicitis ya cargadas)
+      // y continúa la simulación dentro de ese caso desde su propio nodo inicial.
+      const subCaso = pickCasoFromGrupo(rama.grupo_destino, simState.caso.id);
+      const etiqueta = rama.etiqueta || subCaso.titulo;
+      simState.path.push({ texto: '🎲 Bifurcación aleatoria → '+etiqueta, efecto:'aleatorio' });
+      simState.diagnosticoRevelado = etiqueta;
+      simState.casoTroncoTitulo = simState.casoTroncoTitulo || simState.caso.titulo;
+      simState.caso = subCaso;
+      simState.nodeId = subCaso.nodo_inicial;
+      showToast(`🎲 Los estudios revelan: ${etiqueta} (variante sorteada de tu biblioteca)`,'success');
+    } else {
+      simState.path.push({ texto: '🎲 Bifurcación aleatoria'+(rama.etiqueta?' → '+rama.etiqueta:''), efecto:'aleatorio' });
+      if(rama.etiqueta) simState.diagnosticoRevelado = rama.etiqueta;
+      simState.nodeId = rama.siguiente;
+      showToast(rama.etiqueta ? `🎲 Los estudios revelan: ${rama.etiqueta}` : '🎲 Los estudios definen el rumbo del caso…','success');
+    }
+    renderNode();
+  });
+
+  document.getElementById('pearlBar').classList.remove('show');
+  document.getElementById('btnContinue').classList.remove('show');
+}
+
+function chooseOption(btn, opcion){
+  document.querySelectorAll('#optsCol .opt-btn').forEach(b=>b.disabled=true);
+  const isGood = opcion.efecto==='estable' || opcion.efecto==='recupera' || opcion.efecto==='mejora';
+
+  // Tirada de dados opcional: incluso una conducta correcta puede no lograr revertir el cuadro
+  // (ej. RCP según protocolo sin retorno de circulación espontánea). La calidad de la DECISIÓN
+  // se mantiene aparte del resultado del azar — nunca se le "castiga" al estudiante por mala suerte.
+  let siguienteNodo = opcion.siguiente;
+  let azarDesfavorable = false;
+  if(isGood && typeof opcion.probabilidad_exito==='number' && opcion.siguiente_fallo){
+    if(Math.random() >= opcion.probabilidad_exito){
+      siguienteNodo = opcion.siguiente_fallo;
+      azarDesfavorable = true;
+    }
+  }
+
+  btn.classList.add(isGood?'chosen-good':'chosen-bad');
+
+  const efectoPath = azarDesfavorable ? 'azar_desfavorable' : opcion.efecto;
+  simState.path.push({ texto: opcion.texto, efecto: efectoPath });
+  if(opcion.perla) simState.pearlsPath.push({ texto: opcion.texto, perla: opcion.perla, isGood, azarDesfavorable });
+
+  const bar=document.getElementById('pearlBar');
+  bar.className='pearl-bar show '+(azarDesfavorable?'pb-luck':(isGood?'pb-good':'pb-bad'));
+  document.getElementById('pbTitle').className='pb-title '+(azarDesfavorable?'luck':(isGood?'ok':'no'));
+  document.getElementById('pbTitle').textContent = azarDesfavorable
+    ? '🎲 Manejo correcto — el desenlace no dependió de ti'
+    : (isGood?'✅ Buena conducta':'⚠️ Conducta subóptima');
+  document.getElementById('pbText').textContent =
+    (azarDesfavorable ? 'Hiciste lo indicado según protocolo. A pesar de ello, el cuadro no revirtió — no toda mala evolución significa un error de manejo. ' : '') + (opcion.perla||'');
+
+  simState.nodeId = siguienteNodo;
+  document.getElementById('btnContinue').classList.add('show');
+}
+
+document.getElementById('btnContinue').addEventListener('click', renderNode);
+
+function showFinal(node){
+  document.getElementById('simScreen').classList.remove('show');
+
+  const icons = { vive:'✅', vive_complicacion:'⚠️', muere:'☠️' };
+  const badgeLabels = { vive:'El paciente vive', vive_complicacion:'Vive, con complicación', muere:'El paciente fallece' };
+
+  document.getElementById('finalIcon').textContent = icons[node.resultado]||'🏥';
+  document.getElementById('finalBadge').className = 'final-badge '+node.resultado;
+  document.getElementById('finalBadge').textContent = badgeLabels[node.resultado]||node.resultado;
+  document.getElementById('finalTitle').textContent = node.titulo||'Fin del caso';
+  document.getElementById('finalDesc').textContent =
+    (simState.diagnosticoRevelado ? `Diagnóstico de este intento: ${simState.diagnosticoRevelado}. ` : '') + (node.descripcion||'');
+
+  const recap = document.getElementById('pearlsRecapList');
+  recap.innerHTML = simState.pearlsPath.map(p=>`
+    <div class="pr-item">
+      <span class="pri">${p.azarDesfavorable?'🎲':(p.isGood?'✅':'⚠️')}</span>
+      <span><b>${esc(p.texto)}</b>${p.azarDesfavorable?' <i style="color:#38bdf8;font-weight:600;">(decisión correcta, desenlace desfavorable)</i>':''}<br>${esc(p.perla)}</span>
+    </div>`).join('') || '<div class="pr-item">Sin perlas registradas en este caso.</div>';
+
+  const hist=loadHistorial();
+  const casoTitulo = simState.casoTroncoTitulo
+    ? `${simState.casoTroncoTitulo} → ${simState.caso.titulo}`
+    : simState.caso.titulo;
+  hist.push({ id:uid(), date:Date.now(), casoTitulo, resultado:node.resultado, pasos:simState.path.length, diagnosticoRevelado: simState.diagnosticoRevelado||null });
+  saveHistorial(hist);
+  if(fsdb) syncPvHistorialToFirebase(hist);
+
+  document.getElementById('finalScreen').classList.add('show');
+  renderHistorial();
+}
+
+document.getElementById('simBack').addEventListener('click',()=>{
+  if(!confirm('¿Salir de la simulación? Se perderá el progreso de este intento.')) return;
+  document.getElementById('simScreen').classList.remove('show');
+});
+document.getElementById('btnFinalHome').addEventListener('click',()=>{
+  document.getElementById('finalScreen').classList.remove('show');
+  renderCasosList();
+});
+document.getElementById('btnFinalRetry').addEventListener('click',()=>{
+  const casoId = simState.caso.id;
+  document.getElementById('finalScreen').classList.remove('show');
+  startCaso(casoId);
+});
+
+// ── INIT ──
+renderCasosList();
+renderHistorial();
+loadPvFromFirebase().then(()=>{ renderCasosList(); });
+
+document.getElementById('btnCasoAleatorio').addEventListener('click',()=>{
+  if(!pvDB.casos.length){ showToast('Importa al menos un caso primero','error'); return; }
+  const randomCaso = pvDB.casos[Math.floor(Math.random()*pvDB.casos.length)];
+  startCaso(randomCaso.id);
+});
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW registration failed:', e));
+  });
+}
+</script>
+</body>
+</html>
